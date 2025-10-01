@@ -92,19 +92,27 @@ Item {
                     }
                 }
 
+                function openPath() {
+                    plasmoid.nativeInterface.openLocalFileOrDir(directoryId, path)
+                }
                 function copyPath() {
-                    plasmoid.nativeInterface.copyToClipboard(path)
+                    plasmoid.nativeInterface.copyToClipboard(directoryId, path)
                 }
                 function copyDeviceId() {
                     plasmoid.nativeInterface.copyToClipboard(modifiedBy)
                 }
-                function copyFolderId() {
-                    plasmoid.nativeInterface.copyToClipboard(folderId)
+                function copyDirectoryId() {
+                    plasmoid.nativeInterface.copyToClipboard(directoryId)
                 }
             }
 
             PlasmaComponents.Menu {
                 id: contextMenu
+                PlasmaComponents.MenuItem {
+                    text: qsTr("Open item")
+                    icon: "document-open"
+                    onClicked: recentChangesView.currentItem.openPath()
+                }
                 PlasmaComponents.MenuItem {
                     text: qsTr("Copy path")
                     icon: "edit-copy"
@@ -118,7 +126,7 @@ Item {
                 PlasmaComponents.MenuItem {
                     text: qsTr("Copy folder ID")
                     icon: "folder"
-                    onClicked: recentChangesView.currentItem.copyFolderId()
+                    onClicked: recentChangesView.currentItem.copyDirectoryId()
                 }
             }
         }

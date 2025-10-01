@@ -34,6 +34,10 @@
 #include <qtutilities/resources/resources.h>
 #include <qtutilities/settingsdialog/qtsettings.h>
 
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+#include <qtutilities/setup/updater.h>
+#endif
+
 #include <c++utilities/application/argumentparser.h>
 #include <c++utilities/conversion/stringconversion.h>
 
@@ -97,9 +101,16 @@ TrayWidget::TrayWidget(TrayMenu *parent)
     // take record of the newly created instance
     s_instances.push_back(this);
 
-    // show the connection configuration in the previous icon's tooltip as soon as there's a 2nd icon
-    if (s_instances.size() == 2) {
+    // tweak behavior to deal with the presence of more than one tray widgets
+    switch (s_instances.size()) {
+    case 1:
+        // show notifications about new versions only via the first instance (and not all at the same time)
+        connectWithUpdateNotifier();
+        break;
+    case 2:
+        // show the connection configuration in the previous icon's tooltip as soon as there's a 2nd icon
         s_instances.front()->updateIconAndTooltip();
+        break;
     }
 
     m_ui->setupUi(this);
@@ -238,16 +249,30 @@ TrayWidget::TrayWidget(TrayMenu *parent)
 
 TrayWidget::~TrayWidget()
 {
+#ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
+    if (m_webViewDlg) {
+        disconnect(m_webViewDlg, &WebViewDialog::destroyed, this, &TrayWidget::handleWebViewDeleted);
+    }
+#endif
     auto i = std::find(s_instances.begin(), s_instances.end(), this);
+    auto wasFirst = i == s_instances.begin();
     if (i != s_instances.end()) {
         s_instances.erase(i);
     }
     if (s_instances.empty()) {
         delete s_settingsDlg;
         delete s_aboutDlg;
+        s_settingsDlg = nullptr;
+        s_aboutDlg = nullptr;
         QCoreApplication::quit();
-    } else if (s_instances.size() == 1) {
-        s_instances.front()->updateIconAndTooltip();
+    } else {
+        auto *const remainingInstance = s_instances.front();
+        if (wasFirst) {
+            remainingInstance->connectWithUpdateNotifier();
+        }
+        if (s_instances.size() == 1) {
+            remainingInstance->updateIconAndTooltip();
+        }
     }
 }
 
@@ -281,6 +306,12 @@ void TrayWidget::showLauncherSettings()
 {
     showSettingsDialog();
     settingsDialog()->selectLauncherSettings();
+}
+
+void TrayWidget::showUpdateSettings()
+{
+    showSettingsDialog();
+    settingsDialog()->selectUpdateSettings();
 }
 
 void TrayWidget::showWizard()
@@ -357,7 +388,7 @@ void TrayWidget::showAboutDialog()
 
 void TrayWidget::showWebUI()
 {
-    auto *const dlg = QtGui::showWebUI(m_connection.syncthingUrl(), m_selectedConnection, m_webViewDlg, this);
+    auto *const dlg = QtGui::showWebUI(m_connection.syncthingUrl(), m_selectedConnection, m_webViewDlg, this, &m_connection);
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
     if (!dlg) {
         return;
@@ -566,7 +597,7 @@ void TrayWidget::applySettings(const QString &connectionConfig)
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
     // web view
     if (m_webViewDlg) {
-        m_webViewDlg->applySettings(*m_selectedConnection, false);
+        m_webViewDlg->applySettings(*m_selectedConnection, false, &m_connection);
     }
 #endif
 
@@ -747,15 +778,23 @@ void TrayWidget::showRecentChangesContextMenu(const QPoint &position)
             const auto *const selectionModelToCopy = m_ui->recentChangesTreeView->selectionModel();
             const auto indexesToCopy = selectionModelToCopy ? selectionModelToCopy->selectedRows() : QModelIndexList();
             if (indexesToCopy.size() == 1) {
-                QGuiApplication::clipboard()->setText(indexesToCopy.front().data(role).toString());
+                auto &indexToCopy = indexesToCopy.front();
+                auto toCopy = indexToCopy.data(role).toString();
+                if (role == SyncthingRecentChangesModel::Path) {
+                    if (const auto fullPath = m_connection.fullPath(indexToCopy.data(SyncthingRecentChangesModel::DirectoryId).toString(), toCopy);
+                        !fullPath.isEmpty()) {
+                        toCopy = fullPath;
+                    }
+                }
+                QGuiApplication::clipboard()->setText(toCopy);
             }
         };
     };
     auto menu = QMenu(this);
     if (auto index = indexes.front(); index.data(SyncthingRecentChangesModel::Action).toString() != QLatin1String("deleted")) {
-        if (auto dirIndex = 0;
-            const auto *const dir = m_connection.findDirInfo(index.data(SyncthingRecentChangesModel::DirectoryId).toString(), dirIndex)) {
-            const auto fullPath = QString(dir->path % QChar('/') % index.data(SyncthingRecentChangesModel::Path).toString());
+        if (const auto fullPath = m_connection.fullPath(
+                index.data(SyncthingRecentChangesModel::DirectoryId).toString(), index.data(SyncthingRecentChangesModel::Path).toString());
+            !fullPath.isEmpty()) {
             connect(menu.addAction(QIcon::fromTheme(
                                        QStringLiteral("document-open"), QIcon(QStringLiteral(":/icons/hicolor/scalable/actions/document-open.svg"))),
                         tr("Open item")),
@@ -978,7 +1017,7 @@ void TrayWidget::handleConnectionSelected(QAction *connectionAction)
 #endif
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
         if (m_webViewDlg) {
-            m_webViewDlg->applySettings(*m_selectedConnection, false);
+            m_webViewDlg->applySettings(*m_selectedConnection, false, &m_connection);
         }
 #endif
     }
@@ -1062,6 +1101,18 @@ void TrayWidget::setTrafficPixmaps(bool recompute)
         m_connection.totalIncomingRate() > 0.0 ? m_trafficIcons.downloadIconActive : m_trafficIcons.downloadIconInactive);
     m_ui->trafficOutTextLabel->setPixmap(
         m_connection.totalOutgoingRate() > 0.0 ? m_trafficIcons.uploadIconActive : m_trafficIcons.uploadIconInactive);
+}
+
+void TrayWidget::connectWithUpdateNotifier()
+{
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+    if (!m_menu) {
+        return;
+    }
+    if (auto *const updateHandler = QtUtilities::UpdateHandler::mainInstance(); updateHandler && m_menu->icon()) {
+        connect(updateHandler->notifier(), &QtUtilities::UpdateNotifier::updateAvailable, m_menu->icon(), &TrayIcon::showNewVersionAvailable);
+    }
+#endif
 }
 
 } // namespace QtGui

@@ -2,363 +2,415 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>AppService</name>
+    <message>
+        <source>Backend is starting …</source>
+        <translation type="obsolete">Бэкэнд запускается…</translation>
+    </message>
+    <message>
+        <source>This build of the app cannot launch Syncthing.</source>
+        <translation type="obsolete">Эта сборка приложения не может запустить Syncthing.</translation>
+    </message>
+    <message>
+        <source>Syncthing error/notification</source>
+        <translation type="obsolete">Ошибка синхронизации/уведомление</translation>
+    </message>
+    <message>
+        <source>%1 Syncthing errors/notifications</source>
+        <translation type="obsolete">%1 Ошибки/уведомления Syncthing</translation>
+    </message>
+    <message>
+        <source>Most recent: </source>
+        <translation type="obsolete">Самые последние: </translation>
+    </message>
+    <message>
+        <source>Syncthing API error</source>
+        <translation type="obsolete">Ошибка API Syncthing</translation>
+    </message>
+    <message>
+        <source>%1 Syncthing API errors</source>
+        <translation type="obsolete">%1 Ошибки API Syncthing</translation>
+    </message>
+    <message>
+        <source>Syncthing device wants to connect</source>
+        <translation type="obsolete">Устройство Syncthing хочет подключиться</translation>
+    </message>
+    <message>
+        <source>Syncthing device wants to share folder</source>
+        <translation type="obsolete">Устройство Syncthing хочет предоставить общий доступ к папке</translation>
+    </message>
+</context>
+<context>
     <name>QtGui::App</name>
     <message>
-        <location filename="../gui/quick/app.cpp" line="311"/>
         <source>Waiting for backend …</source>
-        <translation>Ожидание бэкэнда…</translation>
+        <translation type="vanished">Ожидание бэкэнда…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="440"/>
-        <location filename="../gui/quick/app.cpp" line="449"/>
         <source>Unable to open &quot;%1&quot;</source>
-        <translation>Невозможно открыть &quot;%1&quot;</translation>
+        <translation type="vanished">Невозможно открыть &quot;%1&quot;</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="478"/>
         <source>Copied value</source>
-        <translation>Скопированное значение</translation>
+        <translation type="vanished">Скопированное значение</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="482"/>
         <source>Unable to copy value</source>
-        <translation>Невозможно скопировать значение</translation>
+        <translation type="vanished">Невозможно скопировать значение</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="491"/>
         <source>Unable to copy &quot;%1&quot;</source>
-        <translation>Невозможно скопировать &quot;%1&quot;</translation>
+        <translation type="vanished">Невозможно скопировать &quot;%1&quot;</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="304"/>
         <source>Backend is starting …</source>
-        <translation>Бэкэнд запускается…</translation>
+        <translation type="vanished">Бэкэнд запускается…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="290"/>
         <source>Checking for data to import …</source>
-        <translation>Проверка данных для импорта…</translation>
+        <translation type="vanished">Проверка данных для импорта…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="292"/>
         <source>Importing configuration …</source>
-        <translation>Импорт конфигурации…</translation>
+        <translation type="vanished">Импорт конфигурации…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="294"/>
         <source>Exporting configuration …</source>
-        <translation>Экспорт конфигурации…</translation>
+        <translation type="vanished">Экспорт конфигурации…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="309"/>
         <source>Not connected to backend.</source>
-        <translation>Не подключен к бэкэнду.</translation>
+        <translation type="vanished">Не подключен к бэкэнду.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="314"/>
         <source>Saving configuration …</source>
-        <translation>Сохранение конфигурации…</translation>
+        <translation type="vanished">Сохранение конфигурации…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../gui/quick/app.cpp" line="316"/>
         <source>There are %n notification(s)/error(s).</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>Имеется %n уведомление/ошибка.</numerusform>
             <numerusform>Имеется %n уведомления/ошибки.</numerusform>
             <numerusform>Имеется %n уведомлений/ошибок.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../gui/quick/app.cpp" line="318"/>
         <source>There are %n Syncthing API error(s).</source>
-        <translation>
+        <translation type="vanished">
             <numerusform>Имеется %n ошибка API синхронизации.</numerusform>
             <numerusform>Имеется %n ошибоки API синхронизации.</numerusform>
             <numerusform>Имеется %n ошибок API синхронизации.</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="466"/>
         <source>Scanning is not supported.</source>
-        <translation>Сканирование не поддерживается.</translation>
+        <translation type="vanished">Сканирование не поддерживается.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="510"/>
         <source>Unable to load ignore patterns: </source>
-        <translation>Невозможно загрузить шаблоны игнорирования: </translation>
+        <translation type="vanished">Невозможно загрузить шаблоны игнорирования: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="531"/>
         <source>Unable to save ignore patterns: </source>
-        <translation>Невозможно сохранить шаблоны игнорирования: </translation>
+        <translation type="vanished">Невозможно сохранить шаблоны игнорирования: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="899"/>
         <source>Unable to resolve URL &quot;%1&quot;.</source>
-        <translation>Не удалось разрешить URL &quot;%1&quot;.</translation>
+        <translation type="vanished">Не удалось разрешить URL &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1114"/>
         <source>Syncthing API error</source>
-        <translation>Ошибка API Syncthing</translation>
+        <translation type="vanished">Ошибка API Syncthing</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1114"/>
         <source>%1 Syncthing API errors</source>
-        <translation>%1 Ошибки API Syncthing</translation>
+        <translation type="vanished">%1 Ошибки API Syncthing</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1098"/>
         <source>Syncthing error/notification</source>
-        <translation>Ошибка синхронизации/уведомление</translation>
+        <translation type="vanished">Ошибка синхронизации/уведомление</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1098"/>
         <source>%1 Syncthing errors/notifications</source>
-        <translation>%1 Ошибки/уведомления Syncthing</translation>
+        <translation type="vanished">%1 Ошибки/уведомления Syncthing</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1124"/>
         <source>Syncthing device wants to connect</source>
-        <translation>Устройство Syncthing хочет подключиться</translation>
+        <translation type="vanished">Устройство Syncthing хочет подключиться</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1134"/>
         <source>Syncthing device wants to share folder</source>
-        <translation>Устройство Syncthing хочет предоставить общий доступ к папке</translation>
+        <translation type="vanished">Устройство Syncthing хочет предоставить общий доступ к папке</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1214"/>
         <source>Another config change is still pending.</source>
-        <translation>Еще одно изменение конфигурации все еще ожидает рассмотрения.</translation>
+        <translation type="vanished">Еще одно изменение конфигурации все еще ожидает рассмотрения.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1325"/>
         <source>Unable to minimize app.</source>
-        <translation>Невозможно свернуть приложение.</translation>
+        <translation type="vanished">Невозможно свернуть приложение.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1377"/>
         <source>Unable to create settings directory under &quot;%1&quot;.</source>
-        <translation>Не удалось создать каталог настроек в «%1».</translation>
+        <translation type="vanished">Не удалось создать каталог настроек в «%1».</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1366"/>
         <source>Unable to open settings under &quot;%1&quot;: </source>
-        <translation>Невозможно открыть настройки в разделе «%1»: </translation>
+        <translation type="vanished">Невозможно открыть настройки в разделе «%1»: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="226"/>
         <source>Triggered override of &quot;%1&quot;</source>
-        <translation>Инициировано переопределение &quot;%1&quot;</translation>
+        <translation type="vanished">Инициировано переопределение &quot;%1&quot;</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="228"/>
         <source>Triggered revert of &quot;%1&quot;</source>
-        <translation>Инициирован возврат &quot;%1&quot;</translation>
+        <translation type="vanished">Инициирован возврат &quot;%1&quot;</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="296"/>
         <source>Checking locations to move home directory …</source>
-        <translation>Проверка местоположений для перемещения домашнего каталога…</translation>
+        <translation type="vanished">Проверка местоположений для перемещения домашнего каталога…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="298"/>
         <source>Moving home directory …</source>
-        <translation>Перемещение домашнего каталога…</translation>
+        <translation type="vanished">Перемещение домашнего каталога…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1099"/>
-        <location filename="../gui/quick/app.cpp" line="1115"/>
         <source>Most recent: </source>
-        <translation>Самые последние: </translation>
+        <translation type="vanished">Самые последние: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1396"/>
         <source>Unable to read settings: </source>
-        <translation>Невозможно прочитать настройки: </translation>
+        <translation type="vanished">Невозможно прочитать настройки: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1399"/>
         <source>Unable to restore settings: </source>
-        <translation>Невозможно восстановить настройки: </translation>
+        <translation type="vanished">Невозможно восстановить настройки: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1400"/>
         <source>JSON document contains no object</source>
-        <translation>Документ JSON не содержит объектов</translation>
+        <translation type="vanished">Документ JSON не содержит объектов</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1431"/>
         <source>Unable to save settings: </source>
-        <translation>Не удалось сохранить настройки: </translation>
+        <translation type="vanished">Не удалось сохранить настройки: </translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1459"/>
         <source>Unable to load HTTPs certificate</source>
-        <translation>Невозможно загрузить сертификат HTTPS</translation>
+        <translation type="vanished">Невозможно загрузить сертификат HTTPS</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1520"/>
-        <source>Unable to open persistent log file for Syncthing under &quot;%1&quot;: %2</source>
-        <translatorcomment>Невозможно открыть постоянный файл журнала для Syncthing в разделе «%1»: %2</translatorcomment>
-        <translation></translation>
-    </message>
-    <message>
-        <location filename="../gui/quick/app.cpp" line="1531"/>
         <source>This build of the app cannot launch Syncthing.</source>
-        <translation>Эта сборка приложения не может запустить Syncthing.</translation>
+        <translation type="vanished">Эта сборка приложения не может запустить Syncthing.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1556"/>
         <source>Persistent logging disabled and logfile removed</source>
-        <translation>Постоянное ведение журнала отключено, файл журнала удален</translation>
+        <translation type="vanished">Постоянное ведение журнала отключено, файл журнала удален</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1558"/>
         <source>Unable to remove logfile</source>
-        <translation>Невозможно удалить файл журнала</translation>
+        <translation type="vanished">Невозможно удалить файл журнала</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1566"/>
         <source>Another import/export still pending</source>
-        <translation>Еще один импорт/экспорт все еще находится на рассмотрении</translation>
+        <translation type="vanished">Еще один импорт/экспорт все еще находится на рассмотрении</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1619"/>
         <source>The Syncthing home directory under &quot;%1&quot; is empty.</source>
-        <translation>Домашний каталог Syncthing в «%1» пуст.</translation>
+        <translation type="vanished">Домашний каталог Syncthing в «%1» пуст.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1632"/>
         <source>No Syncthing configuration file found under &quot;%1&quot;.</source>
-        <translation>Файл конфигурации Syncthing не найден в разделе «%1».</translation>
+        <translation type="vanished">Файл конфигурации Syncthing не найден в разделе «%1».</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1690"/>
-        <location filename="../gui/quick/app.cpp" line="1935"/>
         <source>Unable to import settings: settings directory was not located.</source>
-        <translation>Не удалось импортировать настройки: каталог настроек не найден.</translation>
+        <translation type="vanished">Не удалось импортировать настройки: каталог настроек не найден.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1697"/>
         <source>Waiting for backend to terminate before importing settings …</source>
-        <translation>Ожидание завершения работы бэкэнда перед импортом настроек…</translation>
+        <translation type="vanished">Ожидание завершения работы бэкэнда перед импортом настроек…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1731"/>
         <source>Imported app config from &quot;%1&quot;.</source>
-        <translation>Импортирована конфигурация приложения из &quot;%1&quot;.</translation>
+        <translation type="vanished">Импортирована конфигурация приложения из &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1744"/>
         <source>Imported Syncthing config and database from &quot;%1&quot;.</source>
-        <translation>Импортированы конфигурация и база данных Syncthing из &quot;%1&quot;.</translation>
+        <translation type="vanished">Импортированы конфигурация и база данных Syncthing из &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1762"/>
         <source>Unable to find folders/devices in current Syncthing config.</source>
-        <translation>Не удалось найти папки/устройства в текущей конфигурации Syncthing.</translation>
+        <translation type="vanished">Не удалось найти папки/устройства в текущей конфигурации Syncthing.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1777"/>
         <source>Merging %1 folders and %2 devices</source>
-        <translation>Объединение %1 папок и %2 устройств</translation>
+        <translation type="vanished">Объединение %1 папок и %2 устройств</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1779"/>
         <source>Unable to import folders/devices.</source>
-        <translation>Невозможно импортировать папки/устройства.</translation>
+        <translation type="vanished">Невозможно импортировать папки/устройства.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1797"/>
         <source>Unable to import settings: %1</source>
-        <translation>Невозможно импортировать настройки: %1</translation>
+        <translation type="vanished">Невозможно импортировать настройки: %1</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1824"/>
         <source>unable to create export directory under &quot;%1&quot;</source>
-        <translation>невозможно создать каталог экспорта в &quot;%1&quot;</translation>
+        <translation type="vanished">невозможно создать каталог экспорта в &quot;%1&quot;</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1827"/>
         <source>settings directory was not located.</source>
-        <translation>каталог настроек не найден.</translation>
+        <translation type="vanished">каталог настроек не найден.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1884"/>
         <source>Default directory</source>
-        <translation>Каталог по умолчанию</translation>
+        <translation type="vanished">Каталог по умолчанию</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1900"/>
         <source>External storage %1</source>
-        <translation>Внешнее хранилище %1</translation>
+        <translation type="vanished">Внешнее хранилище %1</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1909"/>
         <source>Current home directory</source>
-        <translation>Текущий домашний каталог</translation>
+        <translation type="vanished">Текущий домашний каталог</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1941"/>
         <source>Waiting for backend to terminate before moving home …</source>
-        <translation>Ожидание завершения работы бэкэнда перед возвращением домой…</translation>
+        <translation type="vanished">Ожидание завершения работы бэкэнда перед возвращением домой…</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1961"/>
         <source>Home directory stays the same.</source>
-        <translation>Домашний каталог остается прежним.</translation>
+        <translation type="vanished">Домашний каталог остается прежним.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1972"/>
         <source>Cleaned up new home directory &quot;%1&quot;.</source>
-        <translation>Очищен новый домашний каталог «%1».</translation>
+        <translation type="vanished">Очищен новый домашний каталог «%1».</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1978"/>
         <source>Copied data from previous home directory &quot;%1&quot; to new one.</source>
-        <translation>Данные скопированы из предыдущего домашнего каталога «%1» в новый.</translation>
+        <translation type="vanished">Данные скопированы из предыдущего домашнего каталога «%1» в новый.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1981"/>
         <source>Cleaned up previous home directory.</source>
-        <translation>Очистил предыдущий домашний каталог.</translation>
+        <translation type="vanished">Очистил предыдущий домашний каталог.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1984"/>
         <source>Configured &quot;%1&quot; as new/empty Syncthing home.</source>
-        <translation>Настроен «%1» как новый/пустой дом Syncthing.</translation>
+        <translation type="vanished">Настроен «%1» как новый/пустой дом Syncthing.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1986"/>
         <source>Configured &quot;%1&quot; as Syncthing home.</source>
-        <translation>Настроил «%1» как домашний адрес Syncthing.</translation>
+        <translation type="vanished">Настроил «%1» как домашний адрес Syncthing.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1990"/>
         <source>Unable to move home directory: %1</source>
-        <translation>Невозможно переместить домашний каталог: %1</translation>
+        <translation type="vanished">Невозможно переместить домашний каталог: %1</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1785"/>
         <source>Nothing has been imported.</source>
-        <translation>Ничего не импортировалось.</translation>
+        <translation type="vanished">Ничего не импортировалось.</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1847"/>
         <source>Unable to export settings: %1</source>
-        <translation>Невозможно экспортировать настройки: %1</translation>
+        <translation type="vanished">Невозможно экспортировать настройки: %1</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.cpp" line="1840"/>
         <source>Settings have been exported to &quot;%1&quot;.</source>
-        <translation>Настройки экспортированы в «%1».</translation>
+        <translation type="vanished">Настройки экспортированы в «%1».</translation>
     </message>
     <message>
-        <location filename="../gui/quick/app.h" line="155"/>
         <source>not available</source>
-        <translation>нет в наличии</translation>
+        <translation type="vanished">нет в наличии</translation>
+    </message>
+</context>
+<context>
+    <name>QtGui::AppBase</name>
+    <message>
+        <source>Not connected to backend.</source>
+        <translation type="obsolete">Не подключен к бэкэнду.</translation>
+    </message>
+    <message>
+        <source>Waiting for backend …</source>
+        <translation type="obsolete">Ожидание бэкэнда…</translation>
+    </message>
+    <message numerus="yes">
+        <source>There are %n notification(s)/error(s).</source>
+        <translation type="obsolete">
+            <numerusform>Имеется %n уведомление/ошибка.</numerusform>
+            <numerusform>Имеется %n уведомления/ошибки.</numerusform>
+            <numerusform>Имеется %n уведомлений/ошибок.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>There are %n Syncthing API error(s).</source>
+        <translation type="obsolete">
+            <numerusform>Имеется %n ошибка API синхронизации.</numerusform>
+            <numerusform>Имеется %n ошибоки API синхронизации.</numerusform>
+            <numerusform>Имеется %n ошибок API синхронизации.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Unable to open settings under &quot;%1&quot;: </source>
+        <translation type="obsolete">Невозможно открыть настройки в разделе «%1»: </translation>
+    </message>
+    <message>
+        <source>Unable to create settings directory under &quot;%1&quot;.</source>
+        <translation type="obsolete">Не удалось создать каталог настроек в «%1».</translation>
+    </message>
+    <message>
+        <source>Unable to read settings: </source>
+        <translation type="obsolete">Невозможно прочитать настройки: </translation>
+    </message>
+    <message>
+        <source>Unable to restore settings: </source>
+        <translation type="obsolete">Невозможно восстановить настройки: </translation>
+    </message>
+    <message>
+        <source>JSON document contains no object</source>
+        <translation type="obsolete">Документ JSON не содержит объектов</translation>
+    </message>
+    <message>
+        <source>Unable to load HTTPs certificate</source>
+        <translation type="obsolete">Невозможно загрузить сертификат HTTPS</translation>
+    </message>
+</context>
+<context>
+    <name>QtGui::AppService</name>
+    <message>
+        <source>Backend is starting …</source>
+        <translation type="obsolete">Бэкэнд запускается…</translation>
+    </message>
+    <message>
+        <source>This build of the app cannot launch Syncthing.</source>
+        <translation type="obsolete">Эта сборка приложения не может запустить Syncthing.</translation>
+    </message>
+    <message>
+        <source>Syncthing error/notification</source>
+        <translation type="obsolete">Ошибка синхронизации/уведомление</translation>
+    </message>
+    <message>
+        <source>%1 Syncthing errors/notifications</source>
+        <translation type="obsolete">%1 Ошибки/уведомления Syncthing</translation>
+    </message>
+    <message>
+        <source>Most recent: </source>
+        <translation type="obsolete">Самые последние: </translation>
+    </message>
+    <message>
+        <source>Syncthing API error</source>
+        <translation type="obsolete">Ошибка API Syncthing</translation>
+    </message>
+    <message>
+        <source>%1 Syncthing API errors</source>
+        <translation type="obsolete">%1 Ошибки API Syncthing</translation>
+    </message>
+    <message>
+        <source>Syncthing device wants to connect</source>
+        <translation type="obsolete">Устройство Syncthing хочет подключиться</translation>
+    </message>
+    <message>
+        <source>Syncthing device wants to share folder</source>
+        <translation type="obsolete">Устройство Syncthing хочет предоставить общий доступ к папке</translation>
     </message>
 </context>
 <context>
@@ -498,32 +550,42 @@
         <translation>Закрыть</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="222"/>
+        <location filename="../gui/trayicon.cpp" line="209"/>
         <source>Error</source>
         <translation>Ошибки</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="242"/>
+        <location filename="../gui/trayicon.cpp" line="229"/>
         <source>Launcher error</source>
         <translation>Ошибка запуска</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="258"/>
+        <location filename="../gui/trayicon.cpp" line="245"/>
         <source>Syncthing notification - click to dismiss</source>
         <translation>Уведомление о синхронизации — нажмите, чтобы закрыть</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="288"/>
+        <location filename="../gui/trayicon.cpp" line="275"/>
         <source>Syncthing device wants to connect - click for web UI</source>
         <translation>Устройство Syncthing хочет подключиться — нажмите для веб-интерфейса</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="305"/>
+        <location filename="../gui/trayicon.cpp" line="292"/>
         <source>New Syncthing folder - click for web UI</source>
         <translation>Новая папка Syncthing — нажмите для веб-интерфейса</translation>
     </message>
     <message>
-        <location filename="../gui/trayicon.cpp" line="183"/>
+        <location filename="../gui/trayicon.cpp" line="307"/>
+        <source>New version - click to open updater</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui/trayicon.cpp" line="307"/>
+        <source>Version %1 is available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui/trayicon.cpp" line="170"/>
         <source>Disconnected from Syncthing</source>
         <translation>Отключено от Syncthing</translation>
     </message>
@@ -537,20 +599,20 @@
     </message>
     <message>
         <location filename="../gui/traywidget.ui" line="99"/>
-        <location filename="../gui/traywidget.cpp" line="351"/>
+        <location filename="../gui/traywidget.cpp" line="382"/>
         <source>About</source>
         <translation>О программе</translation>
     </message>
     <message>
         <location filename="../gui/traywidget.ui" line="58"/>
-        <location filename="../gui/traywidget.cpp" line="472"/>
+        <location filename="../gui/traywidget.cpp" line="503"/>
         <source>Connect</source>
         <translation>Подключиться</translation>
     </message>
     <message>
         <location filename="../gui/traywidget.ui" line="72"/>
-        <location filename="../gui/traywidget.cpp" line="906"/>
-        <location filename="../gui/traywidget.cpp" line="948"/>
+        <location filename="../gui/traywidget.cpp" line="945"/>
+        <location filename="../gui/traywidget.cpp" line="987"/>
         <source>Start</source>
         <translation>Старт</translation>
     </message>
@@ -621,7 +683,7 @@ For &lt;i&gt;all&lt;/i&gt; notifications, checkout the log</source>
     </message>
     <message>
         <location filename="../gui/traywidget.ui" line="357"/>
-        <location filename="../gui/traywidget.cpp" line="161"/>
+        <location filename="../gui/traywidget.cpp" line="172"/>
         <source>New notifications</source>
         <translation>Новые уведомления</translation>
     </message>
@@ -656,133 +718,133 @@ For &lt;i&gt;all&lt;/i&gt; notifications, checkout the log</source>
         <translation>Отклонить</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="133"/>
+        <location filename="../gui/traywidget.cpp" line="144"/>
         <source>View own device ID</source>
         <translation>Просмотреть собственный идентификатор устройства</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="138"/>
+        <location filename="../gui/traywidget.cpp" line="149"/>
         <source>Restart Syncthing</source>
         <translation>Перезагрузить Syncthing</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="143"/>
+        <location filename="../gui/traywidget.cpp" line="154"/>
         <source>Show Syncthing log</source>
         <translation>Показать журнал Syncthing</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="148"/>
+        <location filename="../gui/traywidget.cpp" line="159"/>
         <source>Rescan all folders</source>
         <translation>Повторно сканировать все папки</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="155"/>
+        <location filename="../gui/traywidget.cpp" line="166"/>
         <source>Connection</source>
         <translation>Соединение</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="177"/>
+        <location filename="../gui/traywidget.cpp" line="188"/>
         <source>Show internal errors</source>
         <translation>Показать внутренние ошибки</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="192"/>
+        <location filename="../gui/traywidget.cpp" line="203"/>
         <source>Quit Syncthing Tray</source>
         <translation>Выйти из Syncthing Tray</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="440"/>
+        <location filename="../gui/traywidget.cpp" line="471"/>
         <source>Do you really want to restart Syncthing?</source>
         <translation>Вы действительно хотите перезапустить Syncthing?</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="467"/>
+        <location filename="../gui/traywidget.cpp" line="498"/>
         <source>Connecting …</source>
         <translation>Подключение…</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="468"/>
+        <location filename="../gui/traywidget.cpp" line="499"/>
         <source>Establishing connection to Syncthing …</source>
         <translation>Установка соединения с Syncthing…</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="473"/>
+        <location filename="../gui/traywidget.cpp" line="504"/>
         <source>Not connected to Syncthing, click to connect</source>
         <translation>Не подключено к Syncthing, нажмите, чтобы подключиться</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="478"/>
+        <location filename="../gui/traywidget.cpp" line="509"/>
         <source>Unable to establish connection to Syncthing.</source>
         <translation>Не удалось установить соединение с Syncthing.</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="487"/>
+        <location filename="../gui/traywidget.cpp" line="518"/>
         <source>Pause</source>
         <translation>Пауза</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="488"/>
+        <location filename="../gui/traywidget.cpp" line="519"/>
         <source>Syncthing is running, click to pause all devices</source>
         <translation>Синхронизация запущена, нажмите, чтобы приостановить все устройства</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="493"/>
+        <location filename="../gui/traywidget.cpp" line="524"/>
         <source>Continue</source>
         <translation>Продолжить</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="494"/>
+        <location filename="../gui/traywidget.cpp" line="525"/>
         <source>At least one device is paused, click to resume</source>
         <translation>По крайней мере одно устройство приостановлено, нажмите, чтобы возобновить</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="618"/>
+        <location filename="../gui/traywidget.cpp" line="649"/>
         <source>The specified connection configuration &lt;em&gt;%1&lt;/em&gt; is not defined and hence ignored.</source>
         <translation>Указанная конфигурация соединения &lt;em&gt;%1&lt;/em&gt; не определена и поэтому игнорируется.</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="690"/>
+        <location filename="../gui/traywidget.cpp" line="721"/>
         <source>The folder &lt;i&gt;%1&lt;/i&gt; does not exist on the local machine.</source>
         <translation>Папка &lt;i&gt;%1&lt;/i&gt; не существует на локальном компьютере.</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="701"/>
+        <location filename="../gui/traywidget.cpp" line="732"/>
         <source>The containing folder &lt;i&gt;%1&lt;/i&gt; does not exist on the local machine.</source>
         <translation>Содержащая его папка &lt;i&gt;%1&lt;/i&gt; не существует на локальном компьютере.</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="761"/>
+        <location filename="../gui/traywidget.cpp" line="800"/>
         <source>Open item</source>
         <translation>Открыть элемент</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="766"/>
+        <location filename="../gui/traywidget.cpp" line="805"/>
         <source>Copy path</source>
         <translation>Копировать путь</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="770"/>
+        <location filename="../gui/traywidget.cpp" line="809"/>
         <source>Copy device ID</source>
         <translation>Копировать идентификатор устройства</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="773"/>
+        <location filename="../gui/traywidget.cpp" line="812"/>
         <source>Copy folder ID</source>
         <translation>Копировать идентификатор папки</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="902"/>
-        <location filename="../gui/traywidget.cpp" line="942"/>
+        <location filename="../gui/traywidget.cpp" line="941"/>
+        <location filename="../gui/traywidget.cpp" line="981"/>
         <source>Stop</source>
         <translation>Стоп</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="903"/>
+        <location filename="../gui/traywidget.cpp" line="942"/>
         <source>Stop Syncthing instance launched via tray icon</source>
         <translation>Остановить экземпляр Syncthing, запущенный через значок в трее</translation>
     </message>
     <message>
-        <location filename="../gui/traywidget.cpp" line="907"/>
+        <location filename="../gui/traywidget.cpp" line="946"/>
         <source>Start Syncthing with the built-in launcher configured in the settings</source>
         <translation>Запустите Syncthing с помощью встроенного лаунчера, настроенного в настройках</translation>
     </message>
@@ -790,19 +852,24 @@ For &lt;i&gt;all&lt;/i&gt; notifications, checkout the log</source>
 <context>
     <name>main</name>
     <message>
-        <location filename="../application/main.cpp" line="94"/>
+        <location filename="../application/main.cpp" line="113"/>
         <source>Unable to </source>
         <translation>Невозможно </translation>
     </message>
     <message>
-        <location filename="../application/main.cpp" line="129"/>
+        <location filename="../application/main.cpp" line="159"/>
         <source>The system tray is (currently) not available. You could open the tray menu as a regular window using the --windowed flag, though.It is also possible to start Syncthing Tray with --wait to wait until the system tray becomes available instead of showing this message.</source>
         <translation>Системный лоток (в настоящее время) недоступен. Вы можете открыть меню лотка как обычное окно, используя флаг --windowed. Также можно запустить Syncthing Tray с --wait, чтобы дождаться, пока системный лоток станет доступным, вместо того, чтобы показывать это сообщение.</translation>
     </message>
     <message>
-        <location filename="../application/main.cpp" line="156"/>
+        <location filename="../application/main.cpp" line="186"/>
         <source>The Qt libraries have not been built with tray icon support. You could open the tray menu as a regular window using the -w flag, though.</source>
         <translation>Библиотеки Qt не были созданы с поддержкой иконок в трее. Однако вы можете открыть меню в трее как обычное окно, используя флаг -w.</translation>
+    </message>
+    <message>
+        <location filename="../application/main.cpp" line="485"/>
+        <source>&lt;p&gt;This can have different causes:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Data corruption occurred during the download/extraction. In this case cancelling and retrying the update will help.&lt;/li&gt;&lt;li&gt;The signing key or updating mechanism in general has changed. In this case an according release note will be present on &lt;a href=&quot;https://martchus.github.io/syncthingtray/#downloads-section&quot;&gt;the website&lt;/a&gt; and &lt;a href=&quot;https://github.com/Martchus/syncthingtray/releases&quot;&gt;GitHub&lt;/a&gt;.&lt;/li&gt;&lt;li&gt;A bug in the newly introduced updater, see &lt;a href=&quot;https://github.com/Martchus/syncthingtray/issues&quot;&gt;issues on GitHub&lt;/a&gt; for potential bug reports.&lt;/li&gt;&lt;li&gt;Someone tries to distribute manipulated executables of Syncthing Tray.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;It is recommend to cancel the update and retry or cross-check the cause if the issue persists. If you ignore this error you &lt;i&gt;may&lt;/i&gt; install a corrupted/manipulated executable.&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

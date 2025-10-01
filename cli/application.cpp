@@ -115,6 +115,7 @@ int Application::exec(int argc, const char *const *argv)
             return statusCode;
         }
 
+        m_args.parser.ensureDefaultOperation();
         m_args.parser.checkConstraints();
         m_argsRead = true;
 
@@ -136,8 +137,7 @@ int Application::exec(int argc, const char *const *argv)
 
     // finally do the request or establish connection
     m_connection.setPollingFlags(SyncthingConnection::PollingFlags::MainEvents);
-    if (m_args.status.isPresent() || m_args.rescan.isPresent() || m_args.rescanAll.isPresent() || m_args.pause.isPresent()
-        || m_args.resume.isPresent() || m_args.waitForIdle.isPresent() || m_args.pwd.isPresent()) {
+    if (m_args.status.isPresent() || m_args.statusPwd.isPresent() || m_args.waitForIdle.isPresent()) {
         // those arguments require establishing a connection first, the actual handler is called by handleStatusChanged() when
         // the connection has been established
         m_connection.reconnect(m_settings);
@@ -355,7 +355,11 @@ void Application::requestRescan(const ArgumentOccurrence &occurrence)
         initDirCompletion(m_args.rescan, occurrence);
         return;
     }
+    if (!waitForConfig()) {
+        return;
+    }
 
+    m_connection.applyRawConfig();
     m_expectedResponse = 0;
     connect(&m_connection, &SyncthingConnection::rescanTriggered, this, &Application::handleResponse);
     for (const char *value : occurrence.values) {
@@ -377,6 +381,10 @@ void Application::requestRescan(const ArgumentOccurrence &occurrence)
 
 void Application::requestRescanAll(const ArgumentOccurrence &)
 {
+    if (!waitForConfig()) {
+        return;
+    }
+    m_connection.applyRawConfig();
     m_expectedResponse = m_connection.dirInfo().size();
     connect(&m_connection, &SyncthingConnection::rescanTriggered, this, &Application::handleResponse);
     cerr << "Request rescanning all folders ..." << endl;
@@ -385,6 +393,10 @@ void Application::requestRescanAll(const ArgumentOccurrence &)
 
 void Application::requestPauseResume(bool pause)
 {
+    if (!waitForConfig()) {
+        return;
+    }
+    m_connection.applyRawConfig();
     findRelevantDirsAndDevs(OperationType::PauseResume);
     m_expectedResponse = 0;
     if (pause) {
@@ -495,11 +507,17 @@ void Application::findRelevantDirsAndDevs(OperationType operationType)
     }
 }
 
-bool Application::findPwd()
+bool Application::findPwd(bool waitForConfigArg)
 {
-    const QString pwd(QDir::currentPath());
+    if (waitForConfigArg) {
+        if (!waitForConfig()) {
+            return false;
+        }
+        m_connection.applyRawConfig();
+    }
 
     // find directory for working directory
+    const QString pwd(QDir::currentPath());
     int dummy;
     m_pwd.dirObj = m_connection.findDirInfoByPath(pwd, m_pwd.subDir, dummy);
     if (m_pwd) {
@@ -838,47 +856,50 @@ QByteArray Application::editConfigViaScript() const
 {
 #if defined(SYNCTHINGCTL_USE_SCRIPT) || defined(SYNCTHINGCTL_USE_JSENGINE)
     // get script
-    QByteArray script;
-    QString scriptFileName;
+    auto script = QByteArray();
+    auto scriptFileName = QString();
     if (m_args.script.isPresent()) {
         // read script file
-        QFile scriptFile(QString::fromLocal8Bit(m_args.script.firstValue()));
-        if (!scriptFile.open(QFile::ReadOnly)) {
-            cerr << Phrases::Error << "Unable to open specified script file \"" << m_args.script.firstValue() << "\"." << Phrases::EndFlush;
-            return QByteArray();
+        auto scriptFile = QFile(QString::fromLocal8Bit(m_args.script.firstValue()));
+        if (scriptFile.open(QFile::ReadOnly)) {
+            script = scriptFile.readAll();
+            scriptFileName = scriptFile.fileName();
         }
-        script = scriptFile.readAll();
-        scriptFileName = scriptFile.fileName();
-        if (script.isEmpty()) {
-            cerr << Phrases::Error << "Unable to read any bytes from specified script file \"" << m_args.script.firstValue() << "\"."
-                 << Phrases::EndFlush;
+        if (scriptFile.error() != QFile::NoError) {
+            cerr << Phrases::Error << "Unable to read specified script file \"" << m_args.script.firstValue() << "\":" << Phrases::End;
+            cerr << scriptFile.errorString().toStdString() << '\n';
             return QByteArray();
         }
     } else if (m_args.jsLines.isPresent()) {
         // construct script from CLI arguments
         auto requiredSize = QString::size_type(0);
         for (const auto *const line : m_args.jsLines.values()) {
-            requiredSize += static_cast<QString::size_type>(std::strlen(line));
-            requiredSize += 1;
+            requiredSize += static_cast<QString::size_type>(std::strlen(line)) + 1;
         }
         script.reserve(requiredSize);
         for (const auto *const line : m_args.jsLines.values()) {
             script += line;
             script += '\n';
         }
+        // remove trailing termination to avoid e.g. "Expected token `)' in line 2" when "… line 1" would make more sense
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        script.removeLast();
+#else
+        script.remove(script.size() - 1, 1);
+#endif
     }
 
     // define function to print error
     const auto printError([](const auto &object) {
-        cerr << object.toString().toLocal8Bit().data() << "\nin line " << SYNCTHINGCTL_JS_INT(object.property(QStringLiteral("lineNumber"))) << endl;
+        cerr << object.toString().toStdString() << " in line " << SYNCTHINGCTL_JS_INT(object.property(QStringLiteral("lineNumber"))) << endl;
     });
 
     // evaluate config via JSON.parse()
-    SYNCTHINGCTL_JS_ENGINE engine;
-    auto globalObject(engine.globalObject());
-    const auto configString(QJsonDocument(m_connection.rawConfig()).toJson(QJsonDocument::Indented));
+    auto engine = SYNCTHINGCTL_JS_ENGINE();
+    auto globalObject = engine.globalObject();
+    const auto configString = QJsonDocument(m_connection.rawConfig()).toJson(QJsonDocument::Indented);
     globalObject.setProperty(QStringLiteral("configStr"), SYNCTHINGCTL_JS_VALUE(QString::fromUtf8(configString)) SYNCTHINGCTL_JS_READONLY);
-    const auto configObj(engine.evaluate(QStringLiteral("JSON.parse(configStr)")));
+    const auto configObj = engine.evaluate(QStringLiteral("JSON.parse(configStr)"));
     if (configObj.isError()) {
         cerr << Phrases::Error << "Unable to evaluate the current Syncthing configuration." << Phrases::End;
         printError(configObj);
@@ -891,8 +912,8 @@ QByteArray Application::editConfigViaScript() const
     globalObject.setProperty(QStringLiteral("ownID"), m_connection.myId() SYNCTHINGCTL_JS_UNDELETABLE);
     globalObject.setProperty(QStringLiteral("url"), m_connection.syncthingUrl() SYNCTHINGCTL_JS_UNDELETABLE);
 
-    // provide console.log() which is not available in QJSEngine and QScriptEngine by default (note that print() is only available when using Qt Script)
-    JSConsole console;
+    // provide console.log() which is not available in QJSEngine and QScriptEngine by default (print() is only available when using Qt Script)
+    auto console = JSConsole();
     globalObject.setProperty(QStringLiteral("console"), engine.newQObject(&console));
 
     // provide helper
@@ -903,7 +924,7 @@ QByteArray Application::editConfigViaScript() const
         cerr << Phrases::Error << "Unable to load internal helper script: " << helperFile.errorString().toStdString() << Phrases::EndFlush;
         return QByteArray();
     }
-    const auto helperRes(engine.evaluate(QString::fromUtf8(helperScript)));
+    const auto helperRes = engine.evaluate(QString::fromUtf8(helperScript));
     if (helperRes.isError()) {
         cerr << Phrases::Error << "Unable to evaluate internal helper script." << Phrases::End;
         printError(helperRes);
@@ -911,15 +932,21 @@ QByteArray Application::editConfigViaScript() const
     }
 
     // evaluate the user provided script
-    const auto res(engine.evaluate(QString::fromUtf8(script), scriptFileName));
+    const auto res = engine.evaluate(QString::fromUtf8(script), scriptFileName);
     if (res.isError()) {
-        cerr << Phrases::Error << "Unable to evaluate the specified script file \"" << m_args.script.firstValue() << "\"." << Phrases::End;
+        cerr << Phrases::Error;
+        if (m_args.script.isPresent()) {
+            cerr << "Unable to evaluate the specified script file \"" << m_args.script.firstValue() << "\":";
+        } else {
+            cerr << "Unable to evaluate the specified script:";
+        }
+        cerr << Phrases::End;
         printError(res);
         return QByteArray();
     }
 
     // validate the altered configuration
-    const auto newConfigObj(globalObject.property(QStringLiteral("config")));
+    const auto newConfigObj = globalObject.property(QStringLiteral("config"));
     if (!newConfigObj.isObject()) {
         cerr << Phrases::Error << "New config object seems empty." << Phrases::EndFlush;
         return QByteArray();
@@ -938,7 +965,7 @@ QByteArray Application::editConfigViaScript() const
     }
 
     // serilaize the altered configuration via JSON.stringify()
-    const auto newConfigJson(engine.evaluate(QStringLiteral("JSON.stringify(config, null, 4)")));
+    const auto newConfigJson = engine.evaluate(QStringLiteral("JSON.stringify(config, null, 4)"));
     if (!newConfigJson.isString()) {
         cerr << Phrases::Error << "Unable to convert the config object to JSON via JSON.stringify()." << Phrases::End;
         cerr << configObj.toString().toLocal8Bit().data() << endl;
@@ -1052,10 +1079,9 @@ void Application::printPwdStatus(const ArgumentOccurrence &)
 
 void Application::requestRescanPwd(const ArgumentOccurrence &)
 {
-    if (!findPwd()) {
+    if (!findPwd(true)) {
         return;
     }
-
     m_pwd.notifyAboutRescan();
     m_connection.rescan(m_pwd.dirObj->id, m_pwd.subDir);
     connect(&m_connection, &SyncthingConnection::rescanTriggered, this, &Application::handleResponse);
@@ -1064,7 +1090,7 @@ void Application::requestRescanPwd(const ArgumentOccurrence &)
 
 void Application::requestPausePwd(const ArgumentOccurrence &)
 {
-    if (!findPwd()) {
+    if (!findPwd(true)) {
         return;
     }
     if (m_connection.pauseDirectories(QStringList(m_pwd.dirObj->id))) {
@@ -1080,7 +1106,7 @@ void Application::requestPausePwd(const ArgumentOccurrence &)
 
 void Application::requestResumePwd(const ArgumentOccurrence &)
 {
-    if (!findPwd()) {
+    if (!findPwd(true)) {
         return;
     }
     if (m_connection.resumeDirectories(QStringList(m_pwd.dirObj->id))) {

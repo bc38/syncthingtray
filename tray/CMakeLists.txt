@@ -6,7 +6,7 @@ set(META_APP_NAME "Syncthing Tray")
 set(META_APP_NAME_QUICK_GUI "Syncthing App")
 set(META_GUI_OPTIONAL ON)
 if (QUICK_GUI)
-    set(META_QT_VERSION 6.8.0)
+    set(META_QT_VERSION 6.9.0)
 endif ()
 
 # use testfiles directory from syncthingconnector
@@ -41,8 +41,7 @@ set(WIDGETS_SRC_FILES
     gui/helper.cpp)
 set(RES_FILES resources/${META_PROJECT_NAME}icons.qrc)
 set(WIDGETS_UI_FILES gui/traywidget.ui)
-set(QML_HEADER_FILES gui/quick/app.h gui/quick/scenegraph/managedtexturenode.h)
-set(QML_SRC_FILES gui/quick/app.cpp gui/quick/scenegraph/managedtexturenode.cpp)
+set(META_HAS_QUICK_GUI ON)
 
 set(TS_FILES
     translations/${META_PROJECT_NAME}_zh_CN.ts translations/${META_PROJECT_NAME}_cs_CZ.ts
@@ -106,6 +105,7 @@ set(REQUIRED_ICONS
     system-run
     system-search
     system-file-manager
+    system-software-update-symbolic
     text-x-generic
     quickwizard
     view-refresh
@@ -117,14 +117,26 @@ if (ANDROID)
     set(META_CXX_STANDARD 20)
 endif ()
 
+# determine required version of c++utilities
+option(
+    SETUP_TOOLS
+    "enables setup tools; needs qtutilities and syncthingwidgets built with this option as well; makes likely sense to disable when distributing via a package manager"
+    OFF)
+option(USE_LIBSYNCTHING "whether libsyncthing should be included for syncthingtray's CLI" OFF)
+set(CPP_UTILITIES_REQUIRED_VERSION 5.30.0)
+
 # find c++utilities
-find_package(${PACKAGE_NAMESPACE_PREFIX}c++utilities${CONFIGURATION_PACKAGE_SUFFIX} 5.28.0 REQUIRED)
+find_package(${PACKAGE_NAMESPACE_PREFIX}c++utilities${CONFIGURATION_PACKAGE_SUFFIX} ${CPP_UTILITIES_REQUIRED_VERSION}
+             REQUIRED)
 use_cpp_utilities()
 
 # find qtutilities
 set(QT_UTILITIES_REQUIRED_VERSION 6.15.0)
 if (ANDROID)
     set(QT_UTILITIES_REQUIRED_VERSION 6.16.0)
+endif ()
+if (SETUP_TOOLS)
+    set(QT_UTILITIES_REQUIRED_VERSION 6.18.0)
 endif ()
 find_package(${PACKAGE_NAMESPACE_PREFIX}qtutilities${CONFIGURATION_PACKAGE_SUFFIX_QTUTILITIES}
              ${QT_UTILITIES_REQUIRED_VERSION} REQUIRED)
@@ -148,8 +160,12 @@ endif ()
 # link also explicitly against the following Qt modules
 list(APPEND ADDITIONAL_QT_MODULES Network)
 
+# enable private Qt headers for QAndroidService
+if (ANDROID)
+    list(APPEND ADDITIONAL_QT_MODULES CorePrivate)
+endif ()
+
 # configure libsyncthing
-option(USE_LIBSYNCTHING "whether libsyncthing should be included for syncthingtray's CLI" OFF)
 if (USE_LIBSYNCTHING)
     find_package(syncthing ${META_APP_VERSION} REQUIRED)
     use_syncthing()
@@ -158,11 +174,6 @@ endif ()
 
 # apply basic configuration
 include(BasicConfig)
-
-if (QUICK_GUI)
-    find_package(${PACKAGE_NAMESPACE_PREFIX}qtquickforkawesome${CONFIGURATION_PACKAGE_SUFFIX_QTFORKAWESOME} 0.1.0 REQUIRED)
-    use_qt_quick_fork_awesome()
-endif ()
 
 # add an option to unify left- and right-click context menus useful on Mac OS
 if (APPLE)
@@ -176,10 +187,10 @@ if (UNIFY_TRAY_MENUS)
     message(STATUS "left- and right-click context menus will be unified")
 endif ()
 
-# link against library to use Android's Bitmap API (see https://developer.android.com/ndk/reference/group/bitmap)
+# link against library to use Android's Font API (see https://developer.android.com/ndk/reference/group/font)
 if (ANDROID)
-    find_library(JNI_GRAPHICS_LIB jnigraphics REQUIRED)
-    list(APPEND PRIVATE_LIBRARIES ${JNI_GRAPHICS_LIB})
+    find_library(ANDROID_SYSTEM_LIB android REQUIRED)
+    list(APPEND PRIVATE_LIBRARIES ${ANDROID_SYSTEM_LIB})
 endif ()
 
 # add shortcuts/actions to desktop file
@@ -205,67 +216,44 @@ Name=Restart Syncthing (local instance)\n\
 Exec=${SYNCTHINGCTL_TARGET_NAME} restart")
 set(DESKTOP_FILE_ADDITIONAL_ENTRIES "${DESKTOP_FILE_ADDITIONAL_ENTRIES}${ACTIONS}\n")
 
+# configure whether setup tools are enabled
+if (SETUP_TOOLS)
+    # validate the signature using libsyncthing if enabled to avoid additional dependency on OpenSSL; otherwise use OpenSSL
+    if (NOT USE_LIBSYNCTHING)
+        use_crypto()
+    endif ()
+    list(APPEND REQUIRED_ICONS install info)
+    list(APPEND META_PRIVATE_COMPILE_DEFINITIONS ${META_PROJECT_VARNAME_UPPER}_SETUP_TOOLS_ENABLED)
+endif ()
+
 # configure Qt Quick GUI
 include(QtGuiConfig)
 if (QUICK_GUI)
-    use_standard_filesystem()
-
-    unset(ADDITIONAL_QML_FILES)
-    list(APPEND ADDITIONAL_QT_MODULES Concurrent Svg QuickControls2Material)
-    list(APPEND ADDITIONAL_QT_REPOS svg)
-    list(APPEND PRIVATE_INCLUDE_DIRS gui/quick)
-
     # allow showing the web interface as page in the app (not used right now; hence disabled by default)
-    option(QUICK_GUI_WEBVIEW_PAGE "disables web view support in the Qt Quick GUI" OFF)
-    if (QUICK_GUI_WEBVIEW_PAGE)
-        list(APPEND ADDITIONAL_QML_FILES gui/qml/WebViewPage.qml)
-        include(QtLinkage)
-        unset(WEBVIEWITEM_QML_FILES)
-        # check whether Qt WebView is present
-        option(QUICK_GUI_NO_WEBVIEW "disables web view support in the Qt Quick GUI" ON)
-        if (NOT QUICK_GUI_NO_WEBVIEW)
-            find_package("${QT_PACKAGE_PREFIX}WebView" "${META_QT_VERSION}")
-            find_package("${QT_PACKAGE_PREFIX}WebViewQuick" "${META_QT_VERSION}")
-            if ("${${QT_PACKAGE_PREFIX}WebView_FOUND}" AND "${${QT_PACKAGE_PREFIX}WebViewQuick_FOUND}")
-                list(APPEND ADDITIONAL_QT_MODULES WebView WebViewQuick)
-                list(APPEND ADDITIONAL_QT_REPOS webview)
-                list(APPEND WEBVIEWITEM_QML_FILES gui/qml/webview-webview/WebViewItem.qml)
-                set_property(
-                    SOURCE application/main.cpp
-                    APPEND
-                    PROPERTY COMPILE_DEFINITIONS ${META_PROJECT_VARNAME_UPPER}_HAS_WEBVIEW)
-            endif ()
-        endif ()
-        if (NOT WEBVIEWITEM_QML_FILES)
-            list(APPEND WEBVIEWITEM_QML_FILES gui/qml/webview-none/WebViewItem.qml)
-        endif ()
+    if (SYNCTHINGWIDGETS_HAS_WEBVIEW)
+        set_property(
+            SOURCE application/main.cpp
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS ${META_PROJECT_VARNAME_UPPER}_HAS_WEBVIEW)
+    endif ()
+    if (SYNCTHINGWIDGETS_HAS_WEBVIEW_PAGE)
         set_property(
             SOURCE application/main.cpp
             APPEND
             PROPERTY COMPILE_DEFINITIONS ${META_PROJECT_VARNAME_UPPER}_HAS_WEBVIEW_PAGE)
-
-        # find Qt Qml and enable automoc which is required for the subsequent qt_add_qml_module calls
-        find_package("${QT_PACKAGE_PREFIX}Qml" "${META_QT_VERSION}")
-        set(CMAKE_AUTOMOC ON)
-
-        # add additional module for the web view
-        qt_add_qml_module(
-            ${META_TARGET_NAME}-webviewitem
-            URI
-            "WebViewItem"
-            VERSION
-            1.0
-            STATIC
-            QML_FILES
-            ${WEBVIEWITEM_QML_FILES}
-            RESOURCE_PREFIX
-            "/qt/qml/"
-            OUTPUT_DIRECTORY
-            "${CMAKE_CURRENT_BINARY_DIR}/WebViewItem"
-            NO_PLUGIN_OPTIONAL)
-        list(APPEND PRIVATE_LIBRARIES ${META_TARGET_NAME}-webviewitemplugin)
     endif ()
 endif ()
+
+# consider Java classes when generating API documentation
+set(ANDROID_JAVA_SRC_DIR "android/src/io/github/martchus/syncthingtray")
+list(
+    APPEND
+    DOC_FILES
+    "${ANDROID_JAVA_SRC_DIR}/Activity.java"
+    "${ANDROID_JAVA_SRC_DIR}/Application.java"
+    "${ANDROID_JAVA_SRC_DIR}/DocumentsProvider.java"
+    "${ANDROID_JAVA_SRC_DIR}/SyncthingService.java"
+    "${ANDROID_JAVA_SRC_DIR}/Util.java")
 
 # include further modules to apply configuration
 include(QtConfig)
@@ -273,108 +261,8 @@ include(WindowsResources)
 include(AppTarget)
 include(ShellCompletion)
 include(Doxygen)
+include(Sphinx)
 include(ConfigHeader)
-
-# deduce major Qt version from package prefix
-if (NOT QT_PACKAGE_PREFIX)
-    set(MAJOR_QT_VERSION "5")
-elseif (QT_PACKAGE_PREFIX MATCHES ".*Qt([0-9]+).*")
-    set(MAJOR_QT_VERSION "${CMAKE_MATCH_1}")
-endif ()
-
-# require Qt 6 for the Qt Quick GUI
-if (QUICK_GUI AND (MAJOR_QT_VERSION VERSION_LESS 6 OR MAJOR_QT_VERSION VERSION_GREATER_EQUAL 7))
-    message(FATAL_ERROR "The Qt Quick GUI is only compatible with Qt 6 (but Qt ${MAJOR_QT_VERSION} was found).")
-endif ()
-
-# add Qml module
-if (QUICK_GUI)
-    qt_policy(SET QTP0004 NEW)
-    qt_add_qml_module(
-        ${META_TARGET_NAME}
-        URI
-        "Main"
-        VERSION
-        1.0
-        NO_PLUGIN
-        QML_FILES
-        gui/qml/AboutDialog.qml
-        gui/qml/AdvancedConfigPage.qml
-        gui/qml/AdvancedDevConfigPage.qml
-        gui/qml/AdvancedDirConfigPage.qml
-        gui/qml/AdvancedPage.qml
-        gui/qml/ArrayElementButtons.qml
-        gui/qml/AppControl.qml
-        gui/qml/AppWindow.qml
-        gui/qml/ChangesPage.qml
-        gui/qml/CopyPasteButtons.qml
-        gui/qml/CloseDialog.qml
-        gui/qml/CustomDialog.qml
-        gui/qml/CustomFlickable.qml
-        gui/qml/CustomListView.qml
-        gui/qml/CustomToolButton.qml
-        gui/qml/DetailsListView.qml
-        gui/qml/DevConfigPage.qml
-        gui/qml/DevDelegate.qml
-        gui/qml/DevListView.qml
-        gui/qml/DevsPage.qml
-        gui/qml/DiscardChangesDialog.qml
-        gui/qml/DirConfigPage.qml
-        gui/qml/DirDelegate.qml
-        gui/qml/DirListView.qml
-        gui/qml/DirErrorsPage.qml
-        gui/qml/DirsPage.qml
-        gui/qml/ErrorsDelegate.qml
-        gui/qml/ErrorsPage.qml
-        gui/qml/ExpandableDelegate.qml
-        gui/qml/ExpandableItemDelegate.qml
-        gui/qml/ExpandableListView.qml
-        gui/qml/FilesPage.qml
-        gui/qml/ForkAwesomeIcon.qml
-        gui/qml/HelpButton.qml
-        gui/qml/HomeDirPage.qml
-        gui/qml/IconOnlyButton.qml
-        gui/qml/IgnorePatternPage.qml
-        gui/qml/ImportPage.qml
-        gui/qml/InternalErrorsPage.qml
-        gui/qml/LeftDrawer.qml
-        gui/qml/LoadingPane.qml
-        gui/qml/LogPage.qml
-        gui/qml/MainTabBar.qml
-        gui/qml/MainTabButton.qml
-        gui/qml/MainToolBar.qml
-        gui/qml/MenuItemInstantiator.qml
-        gui/qml/Meta.qml
-        gui/qml/NeededPage.qml
-        gui/qml/Notifications.qml
-        gui/qml/ObjectConfigDelegate.qml
-        gui/qml/ObjectConfigPage.qml
-        gui/qml/OutOfSyncDirs.qml
-        gui/qml/PageStack.qml
-        gui/qml/PendingDevices.qml
-        gui/qml/PendingDirs.qml
-        gui/qml/SelectiveImportDelegate.qml
-        gui/qml/SettingsPage.qml
-        gui/qml/StartPage.qml
-        gui/qml/Statistics.qml
-        gui/qml/StatisticsPage.qml
-        gui/qml/Theming.qml
-        ${ADDITIONAL_QML_FILES}
-        SOURCES
-        gui/quick/quickicon.h
-        gui/quick/quickicon.cpp
-        RESOURCE_PREFIX
-        "/qt/qml/")
-
-    # workaround build errors due to implicit conversions in generated code
-    if (TREAT_WARNINGS_AS_ERRORS)
-        foreach (QML_FILE AdvancedDevConfigPage AdvancedDirConfigPage)
-            set_source_files_properties(
-                "${CMAKE_CURRENT_BINARY_DIR}/.rcc/qmlcache/${META_TARGET_NAME}_gui/qml/${QML_FILE}_qml.cpp"
-                PROPERTIES COMPILE_FLAGS "-Wno-error=conversion")
-        endforeach ()
-    endif ()
-endif ()
 
 # create desktop file using previously defined meta data
 add_desktop_file()
@@ -394,12 +282,21 @@ if (ANDROID)
                    QT_ANDROID_VERSION_NAME "${META_APP_VERSION}"
                    QT_ANDROID_VERSION_CODE "1"
                    QT_ANDROID_PACKAGE_SOURCE_DIR "${ANDROID_PACKAGE_SOURCE_DIR}"
-                   QT_ANDROID_TARGET_SDK_VERSION "34")
+                   QT_ANDROID_TARGET_SDK_VERSION "35")
     option(FORCE_WIDGETS_GUI_ON_ANDOROID "forces using the Qt Widgets GUI on Android" OFF)
     if (QUICK_GUI AND NOT FORCE_WIDGETS_GUI_ON_ANDOROID)
         set(ANDROID_APPLICATION_ARGUMENTS "qt-quick-gui")
     else ()
         set(ANDROID_APPLICATION_ARGUMENTS "qt-widgets-gui --windowed --wip")
+    endif ()
+
+    # allow running the service process with QGuiApplication instantiated (explicitly, not just for icon rendering)
+    option(ANDROID_SERVICE_WITH_GUI_APP "run service with QGuiApplication instantiated" OFF)
+    if (ANDROID_SERVICE_WITH_GUI_APP OR ANDROID_SERVICE_WITH_ICON_RENDERING)
+        set_property(
+            SOURCE application/main.cpp
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS ${META_PROJECT_VARNAME_UPPER}_GUI_CODE_IN_SERVICE)
     endif ()
 
     # allow keeping the app running after the activity has been destroyed (requires Qt patches from my qtbase fork)
@@ -411,13 +308,10 @@ if (ANDROID)
         set(META_BACKGROUND_RUNNING_AFTER_DESTRUCTION false)
     endif ()
 
-    # allow use of newer native Android APIs, see https://developer.android.com/ndk/guides/using-newer-apis
-    set_source_files_properties(
-        "gui/quick/app.cpp" PROPERTIES COMPILE_FLAGS
-                                       "-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ -Werror=unguarded-availability")
-
     set(ANDROID_MANIFEST_PATH "${ANDROID_PACKAGE_SOURCE_DIR}/AndroidManifest.xml")
     configure_file("resources/AndroidManifest.xml.in" "${ANDROID_MANIFEST_PATH}" @ONLY)
+    set(ANDROID_SHORTCUTS_PATH "${ANDROID_PACKAGE_SOURCE_DIR}/res/xml/shortcuts.xml")
+    configure_file("resources/shortcuts.xml.in" "${ANDROID_SHORTCUTS_PATH}" @ONLY)
 
     find_package(OpenSSL)
     if (OPENSSL_FOUND)
@@ -433,13 +327,17 @@ if (ANDROID)
     endif ()
 
     # specify required plugins so androiddeployqt knows what we need and don't need
+    set(REQUIRED_PLATFORMS ${QT_PACKAGE_PREFIX}::QAndroidIntegrationPlugin)
+    if (ANDROID_SERVICE_WITH_GUI_APP OR ANDROID_SERVICE_WITH_ICON_RENDERING)
+        list(APPEND REQUIRED_PLATFORMS ${QT_PACKAGE_PREFIX}::QMinimalIntegrationPlugin)
+    endif ()
     # cmake-format: off
     qt_import_plugins(${META_TARGET_NAME}
-        INCLUDE_BY_TYPE imageformats Qt::QSvgPlugin Qt::QPngPlugin
-        INCLUDE_BY_TYPE iconengines Qt::QSvgIconPlugin
-        INCLUDE_BY_TYPE tls Qt::QTlsBackendOpenSSLPlugin
-        INCLUDE_BY_TYPE networkinformation Qt::QAndroidNetworkInformationPlugin
-        INCLUDE_BY_TYPE platforms Qt::QAndroidIntegrationPlugin
+        INCLUDE_BY_TYPE imageformats ${QT_PACKAGE_PREFIX}::QSvgPlugin
+        INCLUDE_BY_TYPE iconengines ${QT_PACKAGE_PREFIX}::QSvgIconPlugin
+        INCLUDE_BY_TYPE tls ${QT_PACKAGE_PREFIX}::QTlsBackendOpenSSLPlugin
+        INCLUDE_BY_TYPE networkinformation ${QT_PACKAGE_PREFIX}::QAndroidNetworkInformationPlugin
+        INCLUDE_BY_TYPE platforms ${REQUIRED_PLATFORMS}
         EXCLUDE_BY_TYPE platforminputcontexts webview
     )
     # cmake-format: on
@@ -447,12 +345,26 @@ if (ANDROID)
         qt_import_plugins(${META_TARGET_NAME} EXCLUDE_BY_TYPE qmltooling)
     endif ()
 
+    # assert existance of required platform plugins as those MUST be present (or the app will crash on startup)
+    foreach (REQUIRED_PLATFORM ${REQUIRED_PLATFORMS})
+        if (NOT TARGET "${REQUIRED_PLATFORM}")
+            message(FATAL_ERROR "The required platform plugin ${REQUIRED_PLATFORM} is not present in your Qt build.")
+        endif ()
+    endforeach ()
+
     if (USE_LIBSYNCTHING)
         # bundle internal Syncthing library
         set_property(
             TARGET ${META_TARGET_NAME}
             APPEND
             PROPERTY QT_ANDROID_EXTRA_LIBS "${SYNCTHINGINTERNAL_LIBRARY_PATH}")
+        if (SYNCTHING_USE_SYSTEM_SQLITE)
+            find_package(SQLite3 REQUIRED)
+            set_property(
+                TARGET ${META_TARGET_NAME}
+                APPEND
+                PROPERTY QT_ANDROID_EXTRA_LIBS "${SQLite3_LIBRARIES}")
+        endif ()
 
         # workaround https://github.com/golang/go/issues/70508
         set(ANDROID_SIGNAL_HANDLER_LIBRARY "androidsignalhandler")

@@ -259,11 +259,16 @@ static void setVarFromEnv(bool &var, const char *envVar)
     }
 }
 
+QSettings &settings()
+{
+    static auto s = QtUtilities::getSettings(QStringLiteral(PROJECT_NAME));
+    return *s;
+}
+
 bool restore()
 {
-    auto s = QtUtilities::getSettings(QStringLiteral(PROJECT_NAME));
+    auto &settings = ::Settings::settings();
     auto &v = values();
-    auto &settings = *s;
     v.error = QtUtilities::errorMessageForSettings(settings);
 
     const auto version = QVersionNumber::fromString(settings.value(QStringLiteral("v")).toString());
@@ -283,6 +288,7 @@ bool restore()
                 connectionSettings->label = (i == 0 ? QStringLiteral("Primary instance") : QStringLiteral("Secondary instance %1").arg(i));
             }
             connectionSettings->syncthingUrl = settings.value(QStringLiteral("syncthingUrl"), connectionSettings->syncthingUrl).toString();
+            connectionSettings->localPath = settings.value(QStringLiteral("localPath"), connectionSettings->localPath).toString();
             connectionSettings->authEnabled = settings.value(QStringLiteral("authEnabled"), connectionSettings->authEnabled).toBool();
             connectionSettings->userName = settings.value(QStringLiteral("userName")).toString();
             connectionSettings->password = settings.value(QStringLiteral("password")).toString();
@@ -380,7 +386,7 @@ bool restore()
     launcher.libSyncthing.configDir = settings.value(QStringLiteral("libSyncthingConfigDir"), launcher.libSyncthing.configDir).toString();
     launcher.libSyncthing.dataDir = settings.value(QStringLiteral("libSyncthingDataDir"), launcher.libSyncthing.dataDir).toString();
     launcher.libSyncthing.logLevel = static_cast<LibSyncthing::LogLevel>(
-        settings.value(QStringLiteral("libSyncthingLogLevel"), static_cast<int>(launcher.libSyncthing.logLevel)).toInt());
+        settings.value(QStringLiteral("libSyncthing2LogLevel"), static_cast<int>(launcher.libSyncthing.logLevel)).toInt());
     launcher.libSyncthing.expandPaths = settings.value(QStringLiteral("libSyncthingExpandPaths")).toBool();
 #endif
     launcher.syncthingPath = settings.value(QStringLiteral("syncthingPath"), launcher.syncthingPath).toString();
@@ -421,8 +427,8 @@ bool restore()
     webView.zoomFactor = settings.value(QStringLiteral("zoomFactor"), webView.zoomFactor).toDouble();
     webView.geometry = settings.value(QStringLiteral("geometry")).toByteArray();
     webView.keepRunning = settings.value(QStringLiteral("keepRunning"), webView.keepRunning).toBool();
-    settings.endGroup();
 #endif
+    settings.endGroup();
 
     v.qt.restore(settings);
 
@@ -436,8 +442,7 @@ bool restore()
 
 bool save()
 {
-    auto s = QtUtilities::getSettings(QStringLiteral(PROJECT_NAME));
-    auto &settings = *s;
+    auto &settings = ::Settings::settings();
     auto &v = values();
 
     settings.setValue(QStringLiteral("v"), QStringLiteral(APP_VERSION));
@@ -452,6 +457,7 @@ bool save()
         settings.setArrayIndex(i);
         settings.setValue(QStringLiteral("label"), connectionSettings->label);
         settings.setValue(QStringLiteral("syncthingUrl"), connectionSettings->syncthingUrl);
+        settings.setValue(QStringLiteral("localPath"), connectionSettings->localPath);
         settings.setValue(QStringLiteral("authEnabled"), connectionSettings->authEnabled);
         settings.setValue(QStringLiteral("userName"), connectionSettings->userName);
         settings.setValue(QStringLiteral("password"), connectionSettings->password);
@@ -518,7 +524,7 @@ bool save()
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
     settings.setValue(QStringLiteral("libSyncthingConfigDir"), launcher.libSyncthing.configDir);
     settings.setValue(QStringLiteral("libSyncthingDataDir"), launcher.libSyncthing.dataDir);
-    settings.setValue(QStringLiteral("libSyncthingLogLevel"), static_cast<int>(launcher.libSyncthing.logLevel));
+    settings.setValue(QStringLiteral("libSyncthing2LogLevel"), static_cast<int>(launcher.libSyncthing.logLevel));
     settings.setValue(QStringLiteral("libSyncthingExpandPaths"), launcher.libSyncthing.expandPaths);
 #endif
     settings.setValue(QStringLiteral("syncthingPath"), launcher.syncthingPath);
@@ -555,12 +561,12 @@ bool save()
     settings.setValue(QStringLiteral("zoomFactor"), webView.zoomFactor);
     settings.setValue(QStringLiteral("geometry"), webView.geometry);
     settings.setValue(QStringLiteral("keepRunning"), webView.keepRunning);
-    settings.endGroup();
 #endif
+    settings.endGroup();
 
     v.qt.save(settings);
 
-    settings.sync();
+    QtUtilities::saveSettingsWithLogging(settings);
     v.error = QtUtilities::errorMessageForSettings(settings);
     return v.error.isEmpty();
 }
@@ -672,6 +678,7 @@ void Connection::addConfigFromWizard(const Data::SyncthingConfig &config)
     }
 
     primary.syncthingUrl = url;
+    primary.localPath.clear();
     primary.userName = config.guiUser;
     primary.authEnabled = false;
     primary.password.clear();

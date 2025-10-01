@@ -33,6 +33,8 @@ class DateTime;
 namespace QtUtilities {
 class ColorButton;
 class IconButton;
+class RestartHandler;
+class UpdateOptionPage;
 } // namespace QtUtilities
 
 namespace Data {
@@ -205,6 +207,8 @@ public:
     ~SettingsDialog() override;
     void hideConnectionStatus();
     void selectLauncherSettings();
+    void selectUpdateSettings();
+    static void respawnIfRestartRequested();
 
 Q_SIGNALS:
     void wizardRequested();
@@ -217,8 +221,12 @@ private:
 
     ConnectionOptionPage *m_connectionsOptionPage = nullptr;
     AppearanceOptionPage *m_appearanceOptionPage = nullptr;
+    QtUtilities::UpdateOptionPage *m_updateOptionPage = nullptr;
     int m_launcherSettingsCategory = -1, m_launcherSettingsPageIndex = -1;
+    int m_updateSettingsCategory = -1, m_updateSettingsPageIndex = -1;
+    static QtUtilities::RestartHandler *s_restartHandler;
 };
+
 } // namespace QtGui
 
 DECLARE_EXTERN_UI_FILE_BASED_OPTION_PAGE_NS(QtGui, ConnectionOptionPage)

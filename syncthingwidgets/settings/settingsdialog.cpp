@@ -6,6 +6,10 @@
 
 #include <qtutilities/misc/compat.h>
 
+#ifdef SYNCTHINGWIDGETS_SETUP_TOOLS_ENABLED
+#include <qtutilities/setup/updater.h>
+#endif
+
 #include <syncthingconnector/syncthingconfig.h>
 #include <syncthingconnector/syncthingconnection.h>
 #include <syncthingconnector/syncthingprocess.h>
@@ -77,7 +81,6 @@
 
 using namespace std;
 using namespace std::placeholders;
-using namespace Settings;
 using namespace Data;
 using namespace CppUtilities;
 using namespace QtUtilities;
@@ -162,6 +165,9 @@ QWidget *ConnectionOptionPage::setupWidget()
 #if (QT_VERSION < QT_VERSION_CHECK(5, 15, 0))
     ui()->timeoutSpinBox->setEnabled(false);
 #endif
+#if (QT_VERSION < QT_VERSION_CHECK(6, 8, 0))
+    ui()->localPathLineEdit->setEnabled(false);
+#endif
     toggleAdvancedSettings(false);
     return widget;
 }
@@ -234,6 +240,7 @@ bool ConnectionOptionPage::showConnectionSettings(int index)
     }
     const SyncthingConnectionSettings &connectionSettings = (index == 0 ? m_primarySettings : m_secondarySettings[static_cast<size_t>(index - 1)]);
     ui()->urlLineEdit->setText(connectionSettings.syncthingUrl);
+    ui()->localPathLineEdit->setText(connectionSettings.localPath);
     ui()->authCheckBox->setChecked(connectionSettings.authEnabled);
     ui()->userNameLineEdit->setText(connectionSettings.userName);
     ui()->passwordLineEdit->setText(connectionSettings.password);
@@ -264,6 +271,7 @@ bool ConnectionOptionPage::cacheCurrentSettings(bool applying)
     SyncthingConnectionSettings &connectionSettings
         = (m_currentIndex == 0 ? m_primarySettings : m_secondarySettings[static_cast<size_t>(m_currentIndex - 1)]);
     connectionSettings.syncthingUrl = ui()->urlLineEdit->text();
+    connectionSettings.localPath = ui()->localPathLineEdit->text();
     connectionSettings.authEnabled = ui()->authCheckBox->isChecked();
     connectionSettings.userName = ui()->userNameLineEdit->text();
     connectionSettings.password = ui()->passwordLineEdit->text();
@@ -402,16 +410,16 @@ void ConnectionOptionPage::toggleAdvancedSettings(bool show)
         return;
     }
 #if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
-    for (auto *const widget : std::initializer_list<QWidget *>{ ui()->authLabel, ui()->userNameLabel, ui()->passwordLabel, ui()->timeoutLabel,
-             ui()->longPollingLabel, ui()->diskEventLimitLabel, ui()->pollLabel, ui()->pauseOnMeteredConnectionCheckBox }) {
+    for (auto *const widget : std::initializer_list<QWidget *>{ ui()->localPathLabel, ui()->authLabel, ui()->userNameLabel, ui()->passwordLabel,
+             ui()->timeoutLabel, ui()->longPollingLabel, ui()->diskEventLimitLabel, ui()->pollLabel, ui()->pauseOnMeteredConnectionCheckBox }) {
         ui()->formLayout->setRowVisible(widget, show);
     }
 #else
-    for (auto *const widget : std::initializer_list<QWidget *>{ ui()->authLabel, ui()->authCheckBox, ui()->userNameLabel, ui()->userNameLineEdit,
-             ui()->passwordLabel, ui()->passwordLineEdit, ui()->timeoutLabel, ui()->timeoutSpinBox, ui()->longPollingLabel, ui()->longPollingSpinBox,
-             ui()->diskEventLimitLabel, ui()->diskEventLimitSpinBox, ui()->pollLabel, ui()->pollDevStatsLabel, ui()->pollDevStatsSpinBox,
-             ui()->pollErrorsLabel, ui()->pollErrorsSpinBox, ui()->pollTrafficLabel, ui()->pollTrafficSpinBox, ui()->reconnectLabel,
-             ui()->reconnectSpinBox, ui()->pauseOnMeteredConnectionCheckBox }) {
+    for (auto *const widget : std::initializer_list<QWidget *>{ ui()->localPathLabel, ui()->localPathLineEdit, ui()->authLabel, ui()->authCheckBox,
+             ui()->userNameLabel, ui()->userNameLineEdit, ui()->passwordLabel, ui()->passwordLineEdit, ui()->timeoutLabel, ui()->timeoutSpinBox,
+             ui()->longPollingLabel, ui()->longPollingSpinBox, ui()->diskEventLimitLabel, ui()->diskEventLimitSpinBox, ui()->pollLabel,
+             ui()->pollDevStatsLabel, ui()->pollDevStatsSpinBox, ui()->pollErrorsLabel, ui()->pollErrorsSpinBox, ui()->pollTrafficLabel,
+             ui()->pollTrafficSpinBox, ui()->reconnectLabel, ui()->reconnectSpinBox, ui()->pauseOnMeteredConnectionCheckBox }) {
         widget->setVisible(show);
     }
 #endif
@@ -422,15 +430,17 @@ bool ConnectionOptionPage::apply()
     if (!cacheCurrentSettings(true)) {
         return false;
     }
-    values().connection.primary = m_primarySettings;
-    values().connection.secondary = m_secondarySettings;
+    auto &values = Settings::values();
+    values.connection.primary = m_primarySettings;
+    values.connection.secondary = m_secondarySettings;
     return true;
 }
 
 void ConnectionOptionPage::reset()
 {
-    m_primarySettings = values().connection.primary;
-    m_secondarySettings = values().connection.secondary;
+    const auto &values = Settings::values();
+    m_primarySettings = values.connection.primary;
+    m_secondarySettings = values.connection.secondary;
     m_currentIndex = -1;
 
     QStringList itemTexts;
@@ -481,7 +491,7 @@ QWidget *NotificationsOptionPage::setupWidget()
 bool NotificationsOptionPage::apply()
 {
     bool ok = true;
-    auto &settings(values());
+    auto &settings(Settings::values());
     auto &notifyOn(settings.notifyOn);
     notifyOn.disconnect = ui()->notifyOnDisconnectCheckBox->isChecked();
     notifyOn.internalErrors = ui()->notifyOnErrorsCheckBox->isChecked();
@@ -498,13 +508,14 @@ bool NotificationsOptionPage::apply()
         ok = false;
     }
 #endif
-    values().ignoreInavailabilityAfterStart = static_cast<unsigned int>(ui()->ignoreInavailabilityAfterStartSpinBox->value());
+    settings.ignoreInavailabilityAfterStart = static_cast<unsigned int>(ui()->ignoreInavailabilityAfterStartSpinBox->value());
     return ok;
 }
 
 void NotificationsOptionPage::reset()
 {
-    const auto &notifyOn = values().notifyOn;
+    auto &settings(Settings::values());
+    const auto &notifyOn = settings.notifyOn;
     ui()->notifyOnDisconnectCheckBox->setChecked(notifyOn.disconnect);
     ui()->notifyOnErrorsCheckBox->setChecked(notifyOn.internalErrors);
     ui()->notifyOnLauncherErrorsCheckBox->setChecked(notifyOn.launcherErrors);
@@ -514,12 +525,12 @@ void NotificationsOptionPage::reset()
     ui()->notifyOnNewDevConnectsCheckBox->setChecked(notifyOn.newDeviceConnects);
     ui()->notifyOnNewDirSharedCheckBox->setChecked(notifyOn.newDirectoryShared);
 #ifdef QT_UTILITIES_SUPPORT_DBUS_NOTIFICATIONS
-    (values().dbusNotifications ? ui()->dbusRadioButton : ui()->qtRadioButton)->setChecked(true);
+    (settings.dbusNotifications ? ui()->dbusRadioButton : ui()->qtRadioButton)->setChecked(true);
 #else
     ui()->dbusRadioButton->setEnabled(false);
     ui()->qtRadioButton->setChecked(true);
 #endif
-    ui()->ignoreInavailabilityAfterStartSpinBox->setValue(static_cast<int>(values().ignoreInavailabilityAfterStart));
+    ui()->ignoreInavailabilityAfterStartSpinBox->setValue(static_cast<int>(settings.ignoreInavailabilityAfterStart));
 }
 
 // AppearanceOptionPage
@@ -534,7 +545,7 @@ AppearanceOptionPage::~AppearanceOptionPage()
 
 bool AppearanceOptionPage::apply()
 {
-    auto &v = values();
+    auto &v = Settings::values();
     auto &settings = v.appearance;
     settings.windowType = ui()->windowTypeComboBox->currentIndex();
     settings.trayMenuSize.setWidth(ui()->widthSpinBox->value());
@@ -578,7 +589,7 @@ bool AppearanceOptionPage::apply()
 
 void AppearanceOptionPage::resetPositioningSettings()
 {
-    const auto &v = values();
+    const auto &v = Settings::values();
     const auto &settings = v.appearance;
     ui()->widthSpinBox->setValue(settings.trayMenuSize.width());
     ui()->heightSpinBox->setValue(settings.trayMenuSize.height());
@@ -588,7 +599,7 @@ void AppearanceOptionPage::resetPositioningSettings()
 
 void AppearanceOptionPage::reset()
 {
-    const auto &v = values();
+    const auto &v = Settings::values();
     const auto &settings = v.appearance;
     resetPositioningSettings();
     ui()->windowTypeComboBox->setCurrentIndex(settings.windowType);
@@ -770,7 +781,7 @@ bool IconsOptionPage::apply()
             widgetsForColor.colorButtons[2]->color(),
         };
     }
-    auto &iconSettings = values().icons;
+    auto &iconSettings = Settings::values().icons;
     switch (m_context) {
     case Context::Combined:
     case Context::UI:
@@ -808,7 +819,7 @@ void IconsOptionPage::update(bool preserveSize)
 
 void IconsOptionPage::reset()
 {
-    const auto &iconSettings = values().icons;
+    const auto &iconSettings = Settings::values().icons;
     switch (m_context) {
     case Context::Combined:
     case Context::UI:
@@ -1127,7 +1138,7 @@ LauncherOptionPage::LauncherOptionPage(QWidget *parentWidget)
 LauncherOptionPage::LauncherOptionPage(const QString &tool, const QString &toolName, const QString &windowTitle, QWidget *parentWidget)
     : QObject(parentWidget)
     , LauncherOptionPageBase(parentWidget)
-    , m_process(&Launcher::toolProcess(tool))
+    , m_process(&Settings::Launcher::toolProcess(tool))
     , m_launcher(nullptr)
     , m_restoreArgsAction(nullptr)
     , m_kill(false)
@@ -1140,6 +1151,40 @@ LauncherOptionPage::LauncherOptionPage(const QString &tool, const QString &toolN
 LauncherOptionPage::~LauncherOptionPage()
 {
 }
+
+#ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
+static LibSyncthing::LogLevel comboBoxIndexToLogLevel(int index)
+{
+    switch (index) {
+    case 0:
+        return LibSyncthing::LogLevel::Debug;
+    case 1:
+        return LibSyncthing::LogLevel::Info;
+    case 2:
+        return LibSyncthing::LogLevel::Warning;
+    case 3:
+        return LibSyncthing::LogLevel::Error;
+    default:
+        return LibSyncthing::LogLevel::Default;
+    }
+}
+
+static int logLevelToComboBoxIndex(LibSyncthing::LogLevel logLevel)
+{
+    switch (logLevel) {
+    case LibSyncthing::LogLevel::Debug:
+        return 0;
+    case LibSyncthing::LogLevel::Info:
+        return 1;
+    case LibSyncthing::LogLevel::Warning:
+        return 2;
+    case LibSyncthing::LogLevel::Error:
+        return 3;
+    default:
+        return 1;
+    }
+}
+#endif
 
 QWidget *LauncherOptionPage::setupWidget()
 {
@@ -1233,14 +1278,14 @@ QWidget *LauncherOptionPage::setupWidget()
 
 bool LauncherOptionPage::apply()
 {
-    auto &settings = values().launcher;
+    auto &settings = Settings::values().launcher;
     if (m_tool.isEmpty()) {
         settings.autostartEnabled = ui()->enabledCheckBox->isChecked();
         settings.useLibSyncthing = ui()->useBuiltInVersionCheckBox->isChecked();
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
         settings.libSyncthing.configDir = ui()->configDirPathSelection->lineEdit()->text();
         settings.libSyncthing.dataDir = ui()->dataDirPathSelection->lineEdit()->text();
-        settings.libSyncthing.logLevel = static_cast<LibSyncthing::LogLevel>(ui()->logLevelComboBox->currentIndex());
+        settings.libSyncthing.logLevel = comboBoxIndexToLogLevel(ui()->logLevelComboBox->currentIndex());
         settings.libSyncthing.expandPaths = ui()->expandEnvCheckBox->isChecked();
 #endif
         settings.syncthingPath = ui()->syncthingPathSelection->lineEdit()->text();
@@ -1252,7 +1297,7 @@ bool LauncherOptionPage::apply()
             m_launcher->setStoppingOnMeteredConnection(settings.stopOnMeteredConnection);
         }
     } else {
-        ToolParameter &params = settings.tools[m_tool];
+        auto &params = settings.tools[m_tool];
         params.autostart = ui()->enabledCheckBox->isChecked();
         params.path = ui()->syncthingPathSelection->lineEdit()->text();
         params.args = ui()->argumentsLineEdit->text();
@@ -1262,7 +1307,7 @@ bool LauncherOptionPage::apply()
 
 void LauncherOptionPage::reset()
 {
-    const auto &settings = values().launcher;
+    const auto &settings = Settings::values().launcher;
     if (m_tool.isEmpty()) {
         ui()->enabledCheckBox->setChecked(settings.autostartEnabled);
         ui()->useBuiltInVersionCheckBox->setChecked(settings.useLibSyncthing);
@@ -1270,7 +1315,7 @@ void LauncherOptionPage::reset()
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
         ui()->configDirPathSelection->lineEdit()->setText(settings.libSyncthing.configDir);
         ui()->dataDirPathSelection->lineEdit()->setText(settings.libSyncthing.dataDir);
-        ui()->logLevelComboBox->setCurrentIndex(static_cast<int>(settings.libSyncthing.logLevel));
+        ui()->logLevelComboBox->setCurrentIndex(logLevelToComboBoxIndex(settings.libSyncthing.logLevel));
         ui()->expandEnvCheckBox->setChecked(settings.libSyncthing.expandPaths);
 #endif
         ui()->syncthingPathSelection->lineEdit()->setText(settings.syncthingPath);
@@ -1279,7 +1324,7 @@ void LauncherOptionPage::reset()
         ui()->showButtonCheckBox->setChecked(settings.showButton);
         ui()->stopOnMeteredCheckBox->setChecked(settings.stopOnMeteredConnection);
     } else {
-        const ToolParameter params = settings.tools.value(m_tool);
+        const auto params = settings.tools.value(m_tool);
         ui()->useBuiltInVersionCheckBox->setChecked(false);
         ui()->useBuiltInVersionCheckBox->setVisible(false);
         ui()->enabledCheckBox->setChecked(params.autostart);
@@ -1407,7 +1452,7 @@ void LauncherOptionPage::launch()
     if (isRunning()) {
         return;
     }
-    const auto &launcherSettings(values().launcher);
+    const auto &launcherSettings(Settings::values().launcher);
     if (m_tool.isEmpty()) {
         m_launcher->launch(launcherSettings);
         return;
@@ -1420,7 +1465,7 @@ void LauncherOptionPage::launch()
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
 void LauncherOptionPage::updateLibSyncthingLogLevel()
 {
-    m_launcher->setLibSyncthingLogLevel(static_cast<LibSyncthing::LogLevel>(ui()->logLevelComboBox->currentIndex()));
+    m_launcher->setLibSyncthingLogLevel(comboBoxIndexToLogLevel(ui()->logLevelComboBox->currentIndex()));
 }
 #endif
 
@@ -1443,14 +1488,14 @@ void LauncherOptionPage::stop()
             m_process->stopSyncthing();
         }
         if (m_launcher) {
-            m_launcher->terminate(Launcher::connectionForLauncher(m_launcher));
+            m_launcher->terminate(Settings::Launcher::connectionForLauncher(m_launcher));
         }
     }
 }
 
 void LauncherOptionPage::restoreDefaultArguments()
 {
-    static const ::Settings::Launcher defaults;
+    static const Settings::Launcher defaults;
     ui()->argumentsLineEdit->setText(defaults.syncthingArgs);
 }
 
@@ -1522,7 +1567,7 @@ QWidget *SystemdOptionPage::setupWidget()
 
 bool SystemdOptionPage::apply()
 {
-    auto &settings = values();
+    auto &settings = Settings::values();
     auto &systemdSettings = settings.systemd;
     auto &launcherSettings = settings.launcher;
     systemdSettings.syncthingUnit = ui()->syncthingUnitLineEdit->text();
@@ -1548,7 +1593,7 @@ bool SystemdOptionPage::apply()
 
 void SystemdOptionPage::reset()
 {
-    const auto &settings = values().systemd;
+    const auto &settings = Settings::values().systemd;
     ui()->syncthingUnitLineEdit->setText(settings.syncthingUnit);
     ui()->systemUnitCheckBox->setChecked(settings.systemUnit);
     ui()->showButtonCheckBox->setChecked(settings.showButton);
@@ -1662,13 +1707,13 @@ QWidget *GeneralWebViewOptionPage::setupWidget()
 
 bool GeneralWebViewOptionPage::apply()
 {
-    auto &webView = values().webView;
+    auto &webView = Settings::values().webView;
     if (ui()->builtinRadioButton->isChecked()) {
-        webView.mode = ::Settings::WebView::Mode::Builtin;
+        webView.mode = Settings::WebView::Mode::Builtin;
     } else if (ui()->browserRadioButton->isChecked()) {
-        webView.mode = ::Settings::WebView::Mode::Browser;
+        webView.mode = Settings::WebView::Mode::Browser;
     } else if (ui()->appModeRadioButton->isChecked()) {
-        webView.mode = ::Settings::WebView::Mode::Command;
+        webView.mode = Settings::WebView::Mode::Command;
     }
     webView.customCommand = m_customCommand;
     return true;
@@ -1676,17 +1721,17 @@ bool GeneralWebViewOptionPage::apply()
 
 void GeneralWebViewOptionPage::reset()
 {
-    const auto &webView = values().webView;
+    const auto &webView = Settings::values().webView;
     switch (webView.mode) {
-    case ::Settings::WebView::Mode::Builtin:
+    case Settings::WebView::Mode::Builtin:
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
         ui()->builtinRadioButton->setChecked(true);
         break;
 #endif
-    case ::Settings::WebView::Mode::Browser:
+    case Settings::WebView::Mode::Browser:
         ui()->browserRadioButton->setChecked(true);
         break;
-    case ::Settings::WebView::Mode::Command:
+    case Settings::WebView::Mode::Command:
         ui()->appModeRadioButton->setChecked(true);
         break;
     }
@@ -1734,7 +1779,7 @@ QWidget *BuiltinWebViewOptionPage::setupWidget()
 bool BuiltinWebViewOptionPage::apply()
 {
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
-    auto &webView = values().webView;
+    auto &webView = Settings::values().webView;
     webView.zoomFactor = ui()->zoomDoubleSpinBox->value();
     webView.keepRunning = ui()->keepRunningCheckBox->isChecked();
 #endif
@@ -1744,11 +1789,13 @@ bool BuiltinWebViewOptionPage::apply()
 void BuiltinWebViewOptionPage::reset()
 {
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
-    const auto &webView = values().webView;
+    const auto &webView = Settings::values().webView;
     ui()->zoomDoubleSpinBox->setValue(webView.zoomFactor);
     ui()->keepRunningCheckBox->setChecked(webView.keepRunning);
 #endif
 }
+
+QtUtilities::RestartHandler *SettingsDialog::s_restartHandler = nullptr;
 
 SettingsDialog::SettingsDialog(const QList<OptionCategory *> &categories, QWidget *parent)
     : QtUtilities::SettingsDialog(parent)
@@ -1763,10 +1810,47 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     init();
 }
 
+#ifdef SYNCTHINGWIDGETS_SETUP_TOOLS_ENABLED
+/// \cond
+static void replaceProcess()
+{
+    auto *const updateHandler = QtUtilities::UpdateHandler::mainInstance();
+    if (!updateHandler) {
+        return;
+    }
+    auto *const process = new Data::SyncthingProcess();
+    QObject::connect(process, &Data::SyncthingProcess::finished, process, &QObject::deleteLater);
+    QObject::connect(process, &Data::SyncthingProcess::errorOccurred, process, [process] {
+        auto messageBox = QMessageBox();
+        messageBox.setWindowTitle(QStringLiteral("Syncthing"));
+        messageBox.setWindowIcon(QIcon(QStringLiteral(":/icons/hicolor/scalable/app/syncthingtray.svg")));
+        messageBox.setIcon(QMessageBox::Critical);
+        messageBox.setText(QCoreApplication::translate("QtGui", "Unable to restart via \"%1\": %2").arg(process->program(), process->errorString()));
+        messageBox.exec();
+    });
+    process->setProcessChannelMode(QProcess::ForwardedChannels);
+    process->start(updateHandler->updater()->storedPath(), QStringList({ QStringLiteral("qt-widgets-gui"), QStringLiteral("--replace") }));
+}
+/// \endcond
+#endif
+
 SettingsDialog::SettingsDialog(Data::SyncthingConnection *connection, QWidget *parent)
     : QtUtilities::SettingsDialog(parent)
 {
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
+
+#ifdef SYNCTHINGWIDGETS_SETUP_TOOLS_ENABLED
+    // initialize option page for updating
+    m_updateOptionPage = new UpdateOptionPage(QtUtilities::UpdateHandler::mainInstance(), this);
+    if (Settings::values().isIndependentInstance) {
+        if (!s_restartHandler) {
+            s_restartHandler = new RestartHandler;
+        }
+        m_updateOptionPage->setRestartHandler(s_restartHandler->requester());
+    } else {
+        m_updateOptionPage->setRestartHandler(&replaceProcess);
+    }
+#endif
 
     // setup categories
     QList<OptionCategory *> categories;
@@ -1791,19 +1875,37 @@ SettingsDialog::SettingsDialog(Data::SyncthingConnection *connection, QWidget *p
     translateCategory(category, [] { return tr("Startup"); });
     category->assignPages({ new AutostartOptionPage, new LauncherOptionPage,
         new LauncherOptionPage(QStringLiteral("Process"), tr("additional tool"), tr("Extra launcher"))
-#ifdef LIB_SYNCTHING_CONNECTOR_SUPPORT_SYSTEMD
+#ifdef SYNCTHINGWIDGETS_SETUP_TOOLS_ENABLED
             ,
+        m_updateOptionPage
+#endif
+#ifdef LIB_SYNCTHING_CONNECTOR_SUPPORT_SYSTEMD
+        ,
         new SystemdOptionPage
 #endif
     });
     category->setIcon(QIcon::fromTheme(QStringLiteral("system-run"), QIcon(QStringLiteral(":/icons/hicolor/scalable/apps/system-run.svg"))));
     m_launcherSettingsCategory = static_cast<int>(categories.size());
     m_launcherSettingsPageIndex = 1;
+    m_updateSettingsCategory = m_launcherSettingsCategory;
+    m_updateSettingsPageIndex = 3;
     categories << category;
 
-    categories << values().qt.category();
+    categories << Settings::values().qt.category();
     categoryModel()->setCategories(categories);
     init();
+}
+
+void SettingsDialog::respawnIfRestartRequested()
+{
+#ifdef SYNCTHINGWIDGETS_SETUP_TOOLS_ENABLED
+    if (!s_restartHandler) {
+        return;
+    }
+    s_restartHandler->respawnIfRestartRequested();
+    delete s_restartHandler;
+    s_restartHandler = nullptr;
+#endif
 }
 
 SettingsDialog::~SettingsDialog()
@@ -1846,6 +1948,13 @@ void SettingsDialog::selectLauncherSettings()
 {
     if (m_launcherSettingsCategory >= 0 && m_launcherSettingsPageIndex >= 0) {
         selectPage(m_launcherSettingsCategory, m_launcherSettingsPageIndex);
+    }
+}
+
+void SettingsDialog::selectUpdateSettings()
+{
+    if (m_updateSettingsCategory >= 0 && m_updateSettingsPageIndex >= 0) {
+        selectPage(m_updateSettingsCategory, m_updateSettingsPageIndex);
     }
 }
 

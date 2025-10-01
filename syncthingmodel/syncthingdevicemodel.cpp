@@ -7,6 +7,7 @@
 
 #include <c++utilities/conversion/stringconversion.h>
 
+#include <QRegularExpression>
 #include <QStringBuilder>
 
 using namespace std;
@@ -17,7 +18,7 @@ namespace Data {
 static int computeDeviceRowCount(const SyncthingDev &dev)
 {
     // hide connection type, last seen and everything after introducer (eg. traffic) unless connected
-    return dev.isConnected() ? 11 : 6;
+    return dev.status == SyncthingDevStatus::ThisDevice ? 7 : (dev.isConnected() ? 11 : 6);
 }
 
 SyncthingDeviceModel::SyncthingDeviceModel(SyncthingConnection &connection, QObject *parent)
@@ -193,8 +194,25 @@ QVariant SyncthingDeviceModel::data(const QModelIndex &index, int role) const
                     return dev.certName.isEmpty() ? tr("none") : dev.certName;
                 case 9:
                     return dev.introducer ? tr("yes") : tr("no");
-                case 10:
-                    return dev.clientVersion;
+                case 10: {
+                    const QString *version = nullptr;
+                    if (dev.status == SyncthingDevStatus::ThisDevice) {
+                        if (m_thisDevVersion.isEmpty()) {
+                            static const auto versionRegex
+                                = QRegularExpression(QStringLiteral("(syncthing )?(v[^\\(\\)\\s]*)([^\\(\\)]*)(\\(.*(\\))).*"));
+                            const auto versionMatch = versionRegex.match(m_connection.syncthingVersion());
+                            if (versionMatch.hasMatch()) {
+                                m_thisDevVersion = versionMatch.captured(2) % QChar(' ') % versionMatch.captured(4);
+                            }
+                        }
+                        if (!m_thisDevVersion.isEmpty()) {
+                            version = &m_thisDevVersion;
+                        }
+                    } else if (!dev.clientVersion.isEmpty()) {
+                        version = &dev.clientVersion;
+                    }
+                    return version ? *version : tr("unknown");
+                }
                 }
             }
             break;
@@ -387,14 +405,14 @@ void SyncthingDeviceModel::devStatusChanged(const SyncthingDev &dev, int index)
     const auto oldRowCount = m_rowCount[static_cast<std::size_t>(index)];
     const auto newRowCount = computeDeviceRowCount(dev);
     const auto newLastRow = newRowCount - 1;
-    if (oldRowCount > newRowCount) {
-        // begin removing rows for statistics
-        beginRemoveRows(modelIndex1, 2, 3);
+    if (newRowCount < oldRowCount) {
+        // remove surplus rows
+        beginRemoveRows(modelIndex1, newRowCount, oldRowCount - 1);
         m_rowCount[static_cast<std::size_t>(index)] = newRowCount;
         endRemoveRows();
-    } else if (newRowCount > oldRowCount) {
-        // begin inserting rows for statistics
-        beginInsertRows(modelIndex1, 2, 3);
+    } else if (oldRowCount < newRowCount) {
+        // insert additional rows
+        beginInsertRows(modelIndex1, oldRowCount, newLastRow);
         m_rowCount[static_cast<std::size_t>(index)] = newRowCount;
         endInsertRows();
     }
@@ -409,6 +427,7 @@ void SyncthingDeviceModel::devStatusChanged(const SyncthingDev &dev, int index)
 void SyncthingDeviceModel::handleConfigInvalidated()
 {
     beginResetModel();
+    m_thisDevVersion.clear();
 }
 
 void SyncthingDeviceModel::handleNewConfigAvailable()

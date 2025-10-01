@@ -3,15 +3,20 @@
 
 #include "../gui/trayicon.h"
 #include "../gui/traywidget.h"
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+#include "../gui/helper.h"
 #endif
-
-#ifdef GUI_QTQUICK
-#include "../gui/quick/app.h"
 #endif
 
 #include <syncthingwidgets/misc/syncthinglauncher.h>
 #ifdef GUI_QTWIDGETS
 #include <syncthingwidgets/settings/settings.h>
+#include <syncthingwidgets/settings/settingsdialog.h>
+#include <syncthingwidgets/webview/webviewdialog.h>
+#endif
+#ifdef GUI_QTQUICK
+#include <syncthingwidgets/quick/app.h>
+#include <syncthingwidgets/quick/appservice.h>
 #endif
 
 #include <syncthingmodel/syncthingicons.h>
@@ -39,6 +44,12 @@
 #include <qtutilities/resources/resources.h>
 #include <qtutilities/settingsdialog/qtsettings.h>
 
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+#include <c++utilities/misc/signingkeys.h>
+#include <c++utilities/misc/verification.h>
+#include <qtutilities/setup/updater.h>
+#endif
+
 #include <QNetworkAccessManager>
 #include <QSettings>
 #include <QStringBuilder>
@@ -63,11 +74,17 @@ Q_IMPORT_QML_PLUGIN(WebViewItemPlugin)
 #endif
 #endif
 
+#ifdef SYNCTHINGWIDGETS_HAS_SCHEME_HANDLER
+#include <QWebEngineUrlScheme>
+#endif
+
 #include <iostream>
 
 #ifdef Q_OS_ANDROID
 #include <QDebug>
+#include <QLocale>
 #include <QSslSocket>
+#include <QtCore/private/qandroidextras_p.h>
 #endif
 
 using namespace std;
@@ -75,12 +92,14 @@ using namespace CppUtilities;
 using namespace QtGui;
 using namespace Data;
 
-// import static icon engine plugin
-#ifdef QT_FORK_AWESOME_ICON_ENGINE_STATIC
+// import static plugins
 #include <QtPlugin>
+#if defined(QT_FORK_AWESOME_ICON_ENGINE_STATIC)
 Q_IMPORT_PLUGIN(ForkAwesomeIconEnginePlugin)
 #endif
-
+#if defined(SYNCTHINGWIDGETS_STATIC) && defined(GUI_QTQUICK)
+Q_IMPORT_PLUGIN(MainPlugin)
+#endif
 ENABLE_QT_RESOURCES_OF_STATIC_DEPENDENCIES
 
 #ifdef GUI_QTWIDGETS
@@ -95,6 +114,17 @@ static void handleSystemdServiceError(const QString &context, const QString &nam
     msgBox->setInformativeText(name % QStringLiteral(":\n") % message);
     msgBox->show();
 }
+#endif
+
+// define public key and signature extension depending on verification backend
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+#ifdef SYNCTHINGTRAY_USE_LIBSYNCTHING
+#define SYNCTHINGTRAY_SIGNATURE_EXTENSION ".stsigtool.sig"
+#define SYNCTHINGTRAY_SIGNING_KEYS SigningKeys::stsigtool
+#else
+#define SYNCTHINGTRAY_SIGNATURE_EXTENSION ".openssl.sig"
+#define SYNCTHINGTRAY_SIGNING_KEYS SigningKeys::openssl
+#endif
 #endif
 
 QObject *parentObject = nullptr;
@@ -199,7 +229,7 @@ static int runApplication(int argc, const char *const *argv)
     auto windowedArg = ConfigValueArgument("windowed", 'w', "opens the tray menu as a regular window");
     auto showWebUiArg = ConfigValueArgument("webui", '\0', "instantly shows the web UI - meant for creating shortcut to web UI");
     auto triggerArg = ConfigValueArgument("trigger", '\0', "instantly shows the left-click tray menu - meant for creating a shortcut");
-    auto showWizardArg = ConfigValueArgument("show-wizard", '\0', "instantly shows the setup  wizard");
+    auto showWizardArg = ConfigValueArgument("show-wizard", '\0', "instantly shows the setup wizard");
     auto assumeFirstLaunchArg = ConfigValueArgument("assume-first-launch", '\0', "assumes first launch");
     assumeFirstLaunchArg.setFlags(Argument::Flags::Deprecated, true); // hide as it is debug-only
     auto wipArg = ConfigValueArgument("wip", '\0', "enables WIP features");
@@ -245,6 +275,9 @@ static int runApplication(int argc, const char *const *argv)
     });
     syncthingArg.setSubArguments({ &syncthingHelp });
 #endif
+#ifdef Q_OS_ANDROID
+    auto serviceArg = OperationArgument("service", '\0', "runs service");
+#endif
 
     parser.setMainArguments({
 #ifdef GUI_QTWIDGETS
@@ -255,6 +288,9 @@ static int runApplication(int argc, const char *const *argv)
 #endif
 #ifdef SYNCTHINGTRAY_USE_LIBSYNCTHING
         &cliArg, &syncthingArg,
+#endif
+#ifdef Q_OS_ANDROID
+        &serviceArg,
 #endif
         &parser.noColorArg(), &parser.helpArg(),
 #ifdef GUI_QTWIDGETS
@@ -282,6 +318,32 @@ static int runApplication(int argc, const char *const *argv)
     }
 #endif
 
+#ifdef Q_OS_ANDROID
+    if (serviceArg.isPresent()) {
+        qDebug() << "Initializing service";
+        SET_QT_APPLICATION_INFO;
+        auto androidService = QAndroidService(argc, const_cast<char **>(argv));
+#ifdef SYNCTHINGTRAY_GUI_CODE_IN_SERVICE
+        qputenv("QT_QPA_PLATFORM", "minimal"); // cannot use android platform as it would get stuck without activity
+        auto guiApp = QGuiApplication(argc, const_cast<char **>(argv)); // need GUI app for using QIcon and such
+#endif
+
+        // initialize default locale as Qt does not seem to do this for the QAndroidService process
+        const auto localeName = QJniObject(QNativeInterface::QAndroidApplication::context()).callMethod<jstring>("getLocale").toString();
+        const auto locale = QLocale(localeName);
+        QLocale::setDefault(locale);
+        qDebug() << "Qt locale (service): " << locale;
+        LOAD_QT_TRANSLATIONS;
+
+        auto serviceApp = AppService(insecureArg.isPresent());
+        networkAccessManager().setParent(&androidService);
+        qDebug() << "Executing service";
+        const auto res = androidService.exec();
+        qDebug() << "Qt service event loop exited with return code " << res;
+        return res;
+    }
+#endif
+
 #ifdef GUI_QTQUICK
     if (quickGuiArg.isPresent()) {
         qDebug() << "Initializing Qt Quick GUI";
@@ -295,21 +357,37 @@ static int runApplication(int argc, const char *const *argv)
 #endif
         SET_QT_APPLICATION_INFO;
         auto app = QtApp(argc, const_cast<char **>(argv));
-        LOAD_QT_TRANSLATIONS;
 #if defined(Q_OS_ANDROID)
-        qDebug() << "Running Qt Quick GUI";
-#if !defined(QT_NO_SSL)
-        qDebug() << "TLS support available: " << QSslSocket::supportsSsl();
+        qDebug() << "Qt locale: " << QLocale();
 #endif
+        LOAD_QT_TRANSLATIONS;
+#if defined(Q_OS_ANDROID) && !defined(QT_NO_SSL)
+        qDebug() << "TLS support available: " << QSslSocket::supportsSsl();
 #endif
         qtConfigArgs.applySettings(true);
         networkAccessManager().setParent(&app);
-
+#if !defined(Q_OS_ANDROID)
+        auto appService = AppService(insecureArg.isPresent());
+#endif
         auto quickApp = App(insecureArg.isPresent());
-        QObject::connect(&app, &QCoreApplication::aboutToQuit, &quickApp, &App::shutdown);
+#if !defined(Q_OS_ANDROID)
+        QObject::connect(&quickApp, &App::syncthingTerminationRequested, &appService, &AppService::terminateSyncthing);
+        QObject::connect(&quickApp, &App::syncthingRestartRequested, &appService, &AppService::restartSyncthing);
+        QObject::connect(&quickApp, &App::syncthingShutdownRequested, &appService, &AppService::shutdownSyncthing);
+        QObject::connect(&quickApp, &App::syncthingConnectRequested, appService.connection(),
+            static_cast<void (SyncthingConnection::*)()>(&SyncthingConnection::connect));
+        QObject::connect(&quickApp, &App::settingsReloadRequested, &appService, &AppService::reloadSettings);
+        QObject::connect(&quickApp, &App::launcherStatusRequested, &appService, &AppService::broadcastLauncherStatus);
+        QObject::connect(&quickApp, &App::clearLogRequested, &appService, &AppService::clearLog);
+        QObject::connect(&quickApp, &App::replayLogRequested, &appService, &AppService::replayLog);
+        QObject::connect(&appService, &AppService::launcherStatusChanged, &quickApp, &App::handleLauncherStatusBroadcast);
+        QObject::connect(&appService, &AppService::logsAvailable, &quickApp, &App::logsAvailable);
+        QObject::connect(&appService, &AppService::error, &quickApp, &App::error);
+        appService.broadcastLauncherStatus();
+#endif
         const auto res = app.exec();
 #if defined(Q_OS_ANDROID)
-        qDebug() << "Qt event loop exited with return code " << res;
+        qDebug() << "Qt UI event loop exited with return code " << res;
 #endif
         return res;
     }
@@ -330,6 +408,15 @@ static int runApplication(int argc, const char *const *argv)
     if (firstRun) {
         firstRun = false;
         SET_QT_APPLICATION_INFO;
+
+#ifdef SYNCTHINGWIDGETS_HAS_SCHEME_HANDLER
+        auto scheme = QWebEngineUrlScheme(QByteArrayLiteral("st"));
+        scheme.setSyntax(QWebEngineUrlScheme::Syntax::Path);
+        scheme.setFlags(QWebEngineUrlScheme::SecureScheme | QWebEngineUrlScheme::LocalScheme | QWebEngineUrlScheme::LocalAccessAllowed
+            | QWebEngineUrlScheme::ViewSourceAllowed | QWebEngineUrlScheme::FetchApiAllowed);
+        QWebEngineUrlScheme::registerScheme(scheme);
+#endif
+
         auto application = QApplication(argc, const_cast<char **>(argv));
         QGuiApplication::setQuitOnLastWindowClosed(false);
 #if defined(Q_OS_ANDROID)
@@ -360,6 +447,9 @@ static int runApplication(int argc, const char *const *argv)
         if (insecureArg.isPresent()) {
             settings.connection.insecure = true;
         }
+        if (newInstanceArg.isPresent()) {
+            settings.isIndependentInstance = true;
+        }
         LOAD_QT_TRANSLATIONS;
         if (!settings.error.isEmpty()) {
             QMessageBox::critical(nullptr, QCoreApplication::applicationName(), settings.error);
@@ -375,6 +465,44 @@ static int runApplication(int argc, const char *const *argv)
         if (settings.icons.preferIconsFromTheme) {
             Data::setForkAwesomeThemeOverrides();
         }
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+        auto verificationErrorMsgBox = QtUtilities::VerificationErrorMessageBox();
+        auto updateHandler = QtUtilities::UpdateHandler(
+            QString(), QStringLiteral(SYNCTHINGTRAY_SIGNATURE_EXTENSION), &Settings::settings(), &networkAccessManager());
+        updateHandler.updater()->setVerifier([&verificationErrorMsgBox](const QtUtilities::Updater::Update &update) {
+            auto error = QString();
+            if (update.signature.empty()) {
+                error = QStringLiteral("empty/non-existent signature");
+            } else {
+#ifdef SYNCTHINGTRAY_USE_LIBSYNCTHING
+                const auto res = CppUtilities::verifySignature(SYNCTHINGTRAY_SIGNING_KEYS, update.signature, update.data, &LibSyncthing::verify);
+#else
+                const auto res = CppUtilities::verifySignature(SYNCTHINGTRAY_SIGNING_KEYS, update.signature, update.data);
+#endif
+                error = QString::fromUtf8(res.data(), static_cast<QString::size_type>(res.size()));
+            }
+            if (!error.isEmpty()) {
+                auto explanation = QCoreApplication::translate("main",
+                    "<p>This can have different causes:</p>"
+                    "<ul>"
+                    "<li>Data corruption occurred during the download/extraction. In this case cancelling and retrying the update will "
+                    "help.</li>"
+                    "<li>The signing key or updating mechanism in general has changed. In this case an according release note will be present "
+                    "on <a href=\"https://martchus.github.io/syncthingtray/#downloads-section\">the website</a> and <a "
+                    "href=\"https://github.com/Martchus/syncthingtray/releases\">GitHub</a>.</li>"
+                    "<li>A bug in the newly introduced updater, see <a "
+                    "href=\"https://github.com/Martchus/syncthingtray/issues\">issues on GitHub</a> for potential bug reports.</li>"
+                    "<li>Someone tries to distribute manipulated executables of Syncthing Tray.</li>"
+                    "</ul>"
+                    "<p>It is recommend to cancel the update and retry or cross-check the cause if the issue persists. If you ignore this "
+                    "error you <i>may</i> install a corrupted/manipulated executable.</p>");
+                verificationErrorMsgBox.execForError(error, explanation);
+            }
+            return error;
+        });
+        updateHandler.applySettings();
+        QtUtilities::UpdateHandler::setMainInstance(&updateHandler);
+#endif
 
         // init Syncthing Tray and immediately shutdown on failure
         auto parent = QObject();
@@ -387,7 +515,11 @@ static int runApplication(int argc, const char *const *argv)
         // trigger UI and enter event loop
         QObject::connect(&application, &QCoreApplication::aboutToQuit, &shutdownSyncthingTray);
         trigger(triggerArg.isPresent(), showWebUiArg.isPresent(), showWizardArg.isPresent());
-        return application.exec();
+        const auto res = application.exec();
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+        SettingsDialog::respawnIfRestartRequested();
+#endif
+        return res;
     }
 
 #if defined(Q_OS_ANDROID)
@@ -422,5 +554,9 @@ CPP_UTILITIES_MAIN_EXPORT int main(int argc, char *argv[])
     SET_APPLICATION_INFO;
     CMD_UTILS_CONVERT_ARGS_TO_UTF8;
     CMD_UTILS_HANDLE_VIRTUAL_TERMINAL_PROCESSING;
+#ifdef Q_OS_ANDROID
+    // prevent crashes on exit, see https://doc.qt.io/qt-6/android-environment-variables.html
+    qputenv("QT_ANDROID_NO_EXIT_CALL", "1");
+#endif
     return runApplication(argc, argv);
 }

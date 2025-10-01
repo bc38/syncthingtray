@@ -53,8 +53,8 @@ SyncthingLauncher::SyncthingLauncher(QObject *parent)
     , m_lastLauncherSettings(nullptr)
 #endif
     , m_relevantConnection(nullptr)
-    , m_guiListeningUrlSearch("Access the GUI via the following URL: ", "\n\r", std::string_view(), BufferSearch::CallbackType())
-    , m_exitSearch("Syncthing exited: ", "\n\r", std::string_view(), BufferSearch::CallbackType())
+    , m_guiListeningUrlSearch("Access the GUI via the following URL: ", " \n\r", std::string_view(), BufferSearch::CallbackType())
+    , m_exitSearch("Syncthing exited", "\n\r", std::string_view(), BufferSearch::CallbackType())
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
     , m_libsyncthingLogLevel(LibSyncthing::LogLevel::Info)
 #endif
@@ -76,9 +76,9 @@ SyncthingLauncher::SyncthingLauncher(QObject *parent)
 
     // initialize handling of metered connections
 #ifdef SYNCTHINGCONNECTION_SUPPORT_METERED
-    if (const auto *const networkInformation = loadNetworkInformationBackendForMetered()) {
+    if (const auto [networkInformation, isInitiallyMetered] = loadNetworkInformationBackendForMetered(true); networkInformation) {
         connect(networkInformation, &QNetworkInformation::isMeteredChanged, this, [this](bool isMetered) { setNetworkConnectionMetered(isMetered); });
-        setNetworkConnectionMetered(networkInformation->isMetered());
+        setNetworkConnectionMetered(isInitiallyMetered);
     }
 #endif
 }
@@ -313,12 +313,10 @@ QString SyncthingLauncher::libSyncthingLogLevelString(LibSyncthing::LogLevel log
     switch (logLevel) {
     case LibSyncthing::LogLevel::Debug:
         return QStringLiteral("debug");
-    case LibSyncthing::LogLevel::Verbose:
-        return QStringLiteral("verbose");
     case LibSyncthing::LogLevel::Warning:
         return QStringLiteral("warning");
-    case LibSyncthing::LogLevel::Fatal:
-        return QStringLiteral("fatal");
+    case LibSyncthing::LogLevel::Error:
+        return QStringLiteral("error");
     default:
         return QStringLiteral("info");
     }
@@ -332,14 +330,12 @@ void SyncthingLauncher::setLibSyncthingLogLevel(const QString &logLevel, LibSync
 {
     if (logLevel.compare(QLatin1String("debug"), Qt::CaseInsensitive) == 0) {
         m_libsyncthingLogLevel = LibSyncthing::LogLevel::Debug;
-    } else if (logLevel.compare(QLatin1String("verbose"), Qt::CaseInsensitive) == 0) {
-        m_libsyncthingLogLevel = LibSyncthing::LogLevel::Verbose;
     } else if (logLevel.compare(QLatin1String("info"), Qt::CaseInsensitive) == 0) {
         m_libsyncthingLogLevel = LibSyncthing::LogLevel::Info;
     } else if (logLevel.compare(QLatin1String("warning"), Qt::CaseInsensitive) == 0) {
         m_libsyncthingLogLevel = LibSyncthing::LogLevel::Warning;
-    } else if (logLevel.compare(QLatin1String("fatal"), Qt::CaseInsensitive) == 0) {
-        m_libsyncthingLogLevel = LibSyncthing::LogLevel::Fatal;
+    } else if (logLevel.compare(QLatin1String("error"), Qt::CaseInsensitive) == 0) {
+        m_libsyncthingLogLevel = LibSyncthing::LogLevel::Error;
     } else {
         m_libsyncthingLogLevel = fallbackLogLevel;
     }
@@ -366,7 +362,7 @@ void SyncthingLauncher::launch(const LibSyncthing::RuntimeOptions &runtimeOption
 void SyncthingLauncher::terminate(SyncthingConnection *relevantConnection)
 {
     if (m_process.isRunning()) {
-        m_manuallyStopped = true;
+        setManuallyStopped(true);
         m_process.stopSyncthing(relevantConnection);
     } else {
         tearDownLibSyncthing();
@@ -376,7 +372,7 @@ void SyncthingLauncher::terminate(SyncthingConnection *relevantConnection)
 void SyncthingLauncher::kill()
 {
     if (m_process.isRunning()) {
-        m_manuallyStopped = true;
+        setManuallyStopped(true);
         m_process.killSyncthing();
     } else {
         tearDownLibSyncthing();
@@ -395,7 +391,7 @@ void SyncthingLauncher::tearDownLibSyncthing()
     if (!m_startFuture.isRunning() || m_stopFuture.isRunning()) {
         return;
     }
-    m_manuallyStopped = true;
+    setManuallyStopped(true);
     m_stopFuture = QtConcurrent::run(std::bind(&SyncthingLauncher::stopLibSyncthing, this));
 #endif
 }
@@ -421,7 +417,7 @@ void SyncthingLauncher::handleProcessReadyRead()
     if (m_logFile.isOpen()) {
         m_logFile.write(data);
     }
-    handleOutputAvailable(-1, data);
+    handleOutputAvailable(std::numeric_limits<int>::max(), data);
 }
 
 void SyncthingLauncher::handleProcessStateChanged(QProcess::ProcessState newState)
@@ -443,6 +439,9 @@ void SyncthingLauncher::handleProcessFinished(int code, QProcess::ExitStatus sta
 {
     const auto &exitStatus = m_lastExitStatus.emplace(code, status);
     emit exited(exitStatus.code, exitStatus.status);
+    if (m_logFile.isOpen()) {
+        m_logFile.flush();
+    }
 }
 
 void SyncthingLauncher::resetState()
@@ -461,20 +460,30 @@ void SyncthingLauncher::resetState()
 }
 
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
-static const char *const logLevelStrings[] = {
-    "[DEBUG]   ",
-    "[VERBOSE] ",
-    "[INFO]    ",
-    "[WARNING] ",
-    "[FATAL]   ",
-};
+constexpr std::string_view logLevelPrefix(LibSyncthing::LogLevel logLevel)
+{
+    if (logLevel <= LibSyncthing::LogLevel::Debug) {
+        return "[DBG] ";
+    } else if (logLevel <= LibSyncthing::LogLevel::Info) {
+        return "[INF] ";
+    } else if (logLevel <= LibSyncthing::LogLevel::Warning) {
+        return "[WRN] ";
+    } else {
+        return "[ERR] ";
+    }
+}
 
 void SyncthingLauncher::handleLoggingCallback(LibSyncthing::LogLevel level, const char *message, size_t messageSize)
 {
     auto messageData = QByteArray();
     messageSize = min<size_t>(numeric_limits<int>::max() - 20, messageSize);
     messageData.reserve(static_cast<int>(messageSize) + 20);
-    messageData.append(logLevelStrings[static_cast<int>(level)]);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    messageData.append(logLevelPrefix(level));
+#else
+    const auto prefix = logLevelPrefix(level);
+    messageData.append(prefix.data(), static_cast<qsizetype>(prefix.size()));
+#endif
     messageData.append(message, static_cast<int>(messageSize));
     messageData.append('\n');
     if (level >= m_libsyncthingLogLevel && m_logFile.isOpen()) {
@@ -494,8 +503,12 @@ void SyncthingLauncher::handleOutputAvailable(int logLevel, const QByteArray &da
     const auto *const exitOffset = m_exitSearch.process(data.data(), static_cast<std::size_t>(data.size()));
     const auto *const guiAddressOffset = m_guiListeningUrlSearch.process(data.data(), static_cast<std::size_t>(data.size()));
     if (exitOffset) {
-        std::cerr << EscapeCodes::Phrases::Info << "Syncthing exited: " << m_exitSearch.result() << EscapeCodes::Phrases::End;
-        emit exitLogged(std::move(m_exitSearch.result()));
+        auto res = std::string_view(m_exitSearch.result());
+        while (res.starts_with(' ') || res.starts_with(':')) {
+            res.remove_prefix(1);
+        }
+        std::cerr << EscapeCodes::Phrases::Info << "Syncthing exited: " << res << EscapeCodes::Phrases::End;
+        emit exitLogged(res);
         m_exitSearch.reset();
     }
     if (guiAddressOffset > exitOffset) {
@@ -509,7 +522,7 @@ void SyncthingLauncher::handleOutputAvailable(int logLevel, const QByteArray &da
         emit guiUrlChanged(m_guiListeningUrl);
     }
 #ifdef SYNCTHINGWIDGETS_USE_LIBSYNCTHING
-    if (logLevel >= 0 && logLevel < static_cast<int>(m_libsyncthingLogLevel)) {
+    if (logLevel < static_cast<int>(m_libsyncthingLogLevel)) {
         return;
     }
 #else
@@ -566,6 +579,9 @@ void SyncthingLauncher::handleLibSyncthingFinished()
     emit exited(exitStatus.code, exitStatus.status);
     emit runningChanged(false);
     emit startingChanged();
+    if (m_logFile.isOpen()) {
+        m_logFile.flush();
+    }
 }
 #endif
 
@@ -574,9 +590,23 @@ void SyncthingLauncher::handleLibSyncthingFinished()
  */
 void SyncthingLauncher::showLibSyncthingNotSupported(QByteArray &&reason)
 {
-    handleOutputAvailable(4, std::move(reason)); // LibSyncthing::LogLevel::Fatal
+    handleOutputAvailable(std::numeric_limits<int>::max(), std::move(reason));
     const auto &exitStatus = m_lastExitStatus.emplace(-1, QProcess::CrashExit);
     emit exited(exitStatus.code, exitStatus.status);
+}
+
+QVariantMap SyncthingLauncher::overallStatus() const
+{
+    const auto isMetered = isNetworkConnectionMetered();
+    return QVariantMap{
+        { QStringLiteral("isRunning"), isRunning() },
+        { QStringLiteral("isStarting"), isStarting() },
+        { QStringLiteral("isManuallyStopped"), isManuallyStopped() },
+        { QStringLiteral("guiUrl"), guiUrl() },
+        { QStringLiteral("errorString"), errorString() },
+        { QStringLiteral("runningStatus"), runningStatus() },
+        { QStringLiteral("isMetered"), isMetered.has_value() ? QVariant(isMetered.value()) : QVariant() },
+    };
 }
 
 } // namespace Data

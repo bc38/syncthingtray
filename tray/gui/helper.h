@@ -9,6 +9,10 @@
 #include <QStyledItemDelegate>
 #include <QTreeView>
 
+#ifdef SYNCTHINGTRAY_SETUP_TOOLS_ENABLED
+#include <QMessageBox>
+#endif
+
 #include <functional>
 #include <type_traits>
 

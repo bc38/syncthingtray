@@ -6,24 +6,46 @@
 package io.github.martchus.syncthingtray;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.RouteInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.os.storage.StorageManager;
 import android.provider.DocumentsContract;
 import android.util.Log;
 
+import androidx.annotation.RequiresApi;
+
 import java.io.File;
 import java.lang.IllegalArgumentException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 
 public class Util {
     private static final String TAG = "Util";
     private static final String DOWNLOADS_VOLUME_NAME = "downloads";
     private static final String PRIMARY_VOLUME_NAME = "primary";
     private static final String HOME_VOLUME_NAME = "home";
+    private static boolean m_initialized = false;
 
     private Util() {
+    }
+
+    public static void init() {
+        if (m_initialized) {
+            return;
+        }
+
+        // workaround https://github.com/golang/go/issues/70508
+        System.loadLibrary("androidsignalhandler");
+        initSigsysHandler();
+
+        m_initialized = true;
     }
 
     public static String getAbsolutePathFromStorageAccessFrameworkUri(Context context, final Uri uri) {
@@ -97,4 +119,24 @@ public class Util {
         }
         return volumeId;
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public static String getGatewayIPv4(final Context context) {
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        Network activeNetwork = cm.getActiveNetwork();
+        if (activeNetwork == null) return null;
+
+        LinkProperties props = cm.getLinkProperties(activeNetwork);
+        if (props == null) return null;
+
+        for (RouteInfo route : props.getRoutes()) {
+            InetAddress gateway = route.getGateway();
+            if (route.isDefaultRoute() && gateway instanceof Inet4Address) {
+                return gateway.getHostAddress();
+            }
+        }
+        return null;
+    }
+
+    private static native void initSigsysHandler();
 }

@@ -221,6 +221,9 @@ void SyncthingConnection::setLoggingFlags(SyncthingConnectionLoggingFlags flags)
                 && qEnvironmentVariableIntValue(PROJECT_VARNAME_UPPER "_LOG_DIRS_OR_DEVS_RESETTED")) {
                 m_loggingFlags |= SyncthingConnectionLoggingFlags::Events;
             }
+            if (!(flags && SyncthingConnectionLoggingFlags::CertLoading) && qEnvironmentVariableIntValue(PROJECT_VARNAME_UPPER "_LOG_CERT_LOADING")) {
+                m_loggingFlags |= SyncthingConnectionLoggingFlags::CertLoading;
+            }
         }
     }
     if ((m_loggingFlags && SyncthingConnectionLoggingFlags::DirsOrDevsResetted)
@@ -370,7 +373,7 @@ void SyncthingConnection::setPausingOnMeteredConnection(bool pausingOnMeteredCon
             // initialize handling of metered connections
 #ifdef SYNCTHINGCONNECTION_SUPPORT_METERED
             if (!m_handlingMeteredConnectionInitialized) {
-                if (const auto *const networkInformation = loadNetworkInformationBackendForMetered()) {
+                if (const auto [networkInformation, isMetered] = loadNetworkInformationBackendForMetered(); networkInformation) {
                     QObject::connect(networkInformation, &QNetworkInformation::isMeteredChanged, this, &SyncthingConnection::handleMeteredConnection);
                 }
             }
@@ -870,6 +873,17 @@ SyncthingDev *SyncthingConnection::findDevInfoByName(const QString &devName, int
 }
 
 /*!
+ * \brief Returns the full path for \a relativePath within the directory specified by \a dirId.
+ * \remarks Returns an empty string if the directory doesn't exist.
+ */
+QString SyncthingConnection::fullPath(const QString &dirId, const QString &relativePath) const
+{
+    auto row = int();
+    auto dirInfo = findDirInfo(dirId, row);
+    return dirInfo ? (dirInfo->path % QChar('/') % relativePath) : QString();
+}
+
+/*!
  * \brief Returns all directory IDs for the current configuration.
  * \remarks Computed by looping dirInfo().
  */
@@ -1012,11 +1026,17 @@ bool SyncthingConnection::loadSelfSignedCertificate(const QUrl &url)
     // not required when not using secure connection
     const auto syncthingUrl = url.isEmpty() ? m_syncthingUrl : url;
     if (!syncthingUrl.scheme().endsWith(QChar('s'))) {
+        if (m_loggingFlags && SyncthingConnectionLoggingFlags::CertLoading) {
+            std::cerr << Phrases::Info << "Not loading self-signed certificate as URL scheme doesn't end with 's'." << Phrases::End;
+        }
         return false;
     }
 
     // auto-determining the path is only possible if the Syncthing instance is running locally
     if (m_certificatePath.isEmpty() && !::Data::isLocal(syncthingUrl)) {
+        if (m_loggingFlags && SyncthingConnectionLoggingFlags::CertLoading) {
+            std::cerr << Phrases::Info << "Not auto-loading self-signed certificate as URL is not considered local." << Phrases::End;
+        }
         return false;
     }
 
@@ -1025,12 +1045,22 @@ bool SyncthingConnection::loadSelfSignedCertificate(const QUrl &url)
         ? m_certificatePath
         : (!m_configDir.isEmpty() ? (m_configDir + QStringLiteral("/https-cert.pem")) : SyncthingConfig::locateHttpsCertificate());
     if (certPath.isEmpty()) {
+        if (m_loggingFlags && SyncthingConnectionLoggingFlags::CertLoading) {
+            std::cerr << Phrases::Error << "Unable to locate self-signed certificate." << Phrases::End;
+        }
         emit error(tr("Unable to locate certificate used by Syncthing."), SyncthingErrorCategory::OverallConnection, QNetworkReply::NoError);
         return false;
+    }
+    if (m_loggingFlags && SyncthingConnectionLoggingFlags::CertLoading) {
+        const auto pathSpec = m_certificatePath.isEmpty() ? "auto-detected" : "manually specified";
+        std::cerr << Phrases::Info << "Loading self-signed certificate from " << pathSpec << " path: " << certPath.toStdString() << Phrases::End;
     }
     // add exception
     const auto certs = QSslCertificate::fromPath(certPath);
     if (certs.isEmpty() || certs.at(0).isNull()) {
+        if (m_loggingFlags && SyncthingConnectionLoggingFlags::CertLoading) {
+            std::cerr << Phrases::Error << "Unable to load self-signed certificate." << Phrases::End;
+        }
         emit error(tr("Unable to load certificate used by Syncthing."), SyncthingErrorCategory::OverallConnection, QNetworkReply::NoError);
         return false;
     }
@@ -1072,6 +1102,10 @@ bool SyncthingConnection::applySettings(SyncthingConnectionSettings &connectionS
     bool reconnectRequired = false;
     if (syncthingUrl() != connectionSettings.syncthingUrl) {
         setSyncthingUrl(connectionSettings.syncthingUrl);
+        reconnectRequired = true;
+    }
+    if (localPath() != connectionSettings.localPath) {
+        setLocalPath(connectionSettings.localPath);
         reconnectRequired = true;
     }
     if (apiKey() != connectionSettings.apiKey) {
@@ -1251,7 +1285,8 @@ void SyncthingConnection::emitError(const QString &message, const QJsonParseErro
 void SyncthingConnection::emitError(const QString &message, SyncthingErrorCategory category, QNetworkReply *reply)
 {
     if (loggingFlags() && SyncthingConnectionLoggingFlags::ApiReplies) {
-        cerr << Phrases::Error << "Syncthing connection error: " << message.toLocal8Bit().data() << reply->errorString().toLocal8Bit().data() << endl;
+        std::cerr << Phrases::Error << "Syncthing connection error: " << message.toLocal8Bit().data() << reply->errorString().toLocal8Bit().data()
+                  << Phrases::End;
     }
     emit error(message + reply->errorString(), category, reply->error(), reply->request(), reply->bytesAvailable() ? reply->readAll() : QByteArray());
 
@@ -1269,7 +1304,8 @@ void SyncthingConnection::emitError(const QString &message, SyncthingErrorCatego
 void SyncthingConnection::emitError(const QString &message, QNetworkReply *reply)
 {
     if (loggingFlags() && SyncthingConnectionLoggingFlags::ApiReplies) {
-        cerr << Phrases::Error << "Syncthing API error: " << message.toLocal8Bit().data() << reply->errorString().toLocal8Bit().data() << endl;
+        std::cerr << Phrases::Error << "Syncthing API error: " << message.toLocal8Bit().data() << reply->errorString().toLocal8Bit().data()
+                  << Phrases::End;
     }
     emit error(message, SyncthingErrorCategory::SpecificRequest, reply->error(), reply->request(),
         reply->bytesAvailable() ? reply->readAll() : QByteArray());

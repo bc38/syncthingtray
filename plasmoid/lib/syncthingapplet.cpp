@@ -310,7 +310,7 @@ void SyncthingApplet::setCurrentConnectionConfigIndex(int index)
         reconnectRequired = m_connection.applySettings(selectedConfig);
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
         if (m_webViewDlg) {
-            m_webViewDlg->applySettings(selectedConfig, false);
+            m_webViewDlg->applySettings(selectedConfig, false, &m_connection);
         }
 #endif
         config().writeEntry<int>("selectedConfig", index);
@@ -475,7 +475,7 @@ void SyncthingApplet::concludeWizard(const QString &errorMessage)
 
 void SyncthingApplet::showWebUI()
 {
-    auto *const dlg = QtGui::showWebUI(m_connection.syncthingUrl(), currentConnectionConfig(), m_webViewDlg);
+    auto *const dlg = QtGui::showWebUI(m_connection.syncthingUrl(), currentConnectionConfig(), m_webViewDlg, nullptr, &m_connection);
 #ifndef SYNCTHINGWIDGETS_NO_WEBVIEW
     if (!dlg) {
         return;
@@ -581,10 +581,19 @@ void SyncthingApplet::copyToClipboard(const QString &text)
     QGuiApplication::clipboard()->setText(text);
 }
 
+void SyncthingApplet::copyToClipboard(const QString &dirId, const QString &relativePath)
+{
+    if (const auto fullPath = m_connection.fullPath(dirId, relativePath); !fullPath.isEmpty()) {
+        QGuiApplication::clipboard()->setText(fullPath);
+    } else {
+        QGuiApplication::clipboard()->setText(relativePath);
+    }
+}
+
 void SyncthingApplet::openLocalFileOrDir(const QString &dirId, const QString &relativePath)
 {
-    if (auto dirIndex = 0; const auto *const dir = m_connection.findDirInfo(dirId, dirIndex)) {
-        QtUtilities::openLocalFileOrDir(QString(dir->path % QChar('/') % relativePath));
+    if (const auto fullPath = m_connection.fullPath(dirId, relativePath); !fullPath.isEmpty()) {
+        QtUtilities::openLocalFileOrDir(fullPath);
     } else {
         QMessageBox::warning(nullptr, QStringLiteral(APP_NAME), tr("Associated directory does not exist."));
     }

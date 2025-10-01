@@ -18,8 +18,15 @@ import androidx.core.content.ContextCompat;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
+
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 /**
  * A document provider for the Storage Access Framework which exposes the files in the
@@ -34,8 +41,8 @@ import java.util.LinkedList;
  */
 public class DocumentsProvider extends android.provider.DocumentsProvider {
     private static final String ALL_MIME_TYPES = "*/*";
-    private File[] m_rootDirs = new File[]{};
-    private String[] m_rootPaths = new String[]{};
+    private ArrayList<File> m_rootDirs = new ArrayList<File>();
+    private ArrayList<String> m_rootPaths = new ArrayList<String>();
 
     // The default columns to return information about a root if no specific
     // columns are requested in a query.
@@ -62,27 +69,33 @@ public class DocumentsProvider extends android.provider.DocumentsProvider {
     };
 
     private void determineRootPaths(Context context) {
-        try {
-            m_rootDirs = ContextCompat.getExternalFilesDirs(context, null);
-            m_rootPaths = new String[m_rootDirs.length];
-            for (int i = 0, len = m_rootDirs.length; i != len; ++i) {
-                m_rootPaths[i] = m_rootDirs[i].getCanonicalPath();
+        File filesDir = context.getFilesDir();
+        for (File externalDir : ContextCompat.getExternalFilesDirs(context, null)) {
+            if (externalDir != null) {
+                m_rootDirs.add(externalDir);
             }
-        } catch (IOException e) {
-            // ensure at least some empty arrays are assigned
-            m_rootDirs = new File[]{};
-            m_rootPaths = new String[]{};
+        }
+        if (filesDir != null) {
+            m_rootDirs.add(filesDir);
+        }
+        for (File rootDir : m_rootDirs) {
+            try {
+                m_rootPaths.add(rootDir.getCanonicalPath());
+            } catch (IOException e) {
+                m_rootPaths.add(rootDir.getAbsolutePath());
+            }
         }
     }
 
     private String summaryForRootIndex(int index) {
-        if (m_rootDirs.length == 1) {
-            return "";
-        }
         if (index == 0) {
             return "Internal storage";
         }
-        if (m_rootDirs.length <= 2) {
+        int lastIndex = m_rootDirs.size() - 1;
+        if (index == lastIndex) {
+            return "Home directory";
+        }
+        if (lastIndex <= 2) {
             return "External storage";
         }
         return "External storage: " + index;
@@ -184,6 +197,38 @@ public class DocumentsProvider extends android.provider.DocumentsProvider {
         if (!file.delete()) {
             throw new FileNotFoundException("Failed to delete document with id " + documentId);
         }
+    }
+
+    @Override
+    public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        File src = getFileForDocId(documentId);
+        File dst = new File(src.getParent(), displayName);
+        if (!src.renameTo(dst)) {
+            throw new FileNotFoundException("Failed to rename document with id " + documentId);
+        }
+        return getDocIdForFile(dst);
+    }
+
+    @Override
+    public String moveDocument(String sourceDocumentId, String sourceParentDocumentId, String destinationParentDocumentId) throws FileNotFoundException {
+        File src = getFileForDocId(sourceDocumentId);
+        File dst = new File(getFileForDocId(destinationParentDocumentId), src.getName());
+        if (!src.renameTo(dst)) {
+            throw new FileNotFoundException("Failed to move document " + sourceDocumentId + " to " + destinationParentDocumentId);
+        }
+        return getDocIdForFile(dst);
+    }
+
+    @Override
+    public String copyDocument(String sourceDocumentId, String destinationParentDocumentId) throws FileNotFoundException {
+        File src = getFileForDocId(sourceDocumentId);
+        File dst = new File(getFileForDocId(destinationParentDocumentId), src.getName());
+        try {
+            Files.copy(src.toPath(), dst.toPath(), REPLACE_EXISTING, COPY_ATTRIBUTES, NOFOLLOW_LINKS);
+        } catch (IOException e) {
+            throw new FileNotFoundException("Failed to copy document " + sourceDocumentId + " to " + destinationParentDocumentId + ": " + e.getMessage());
+        }
+        return getDocIdForFile(dst);
     }
 
     @Override
@@ -292,10 +337,11 @@ public class DocumentsProvider extends android.provider.DocumentsProvider {
         int flags = 0;
         if (file.isDirectory()) {
             if (file.canWrite()) flags |= Document.FLAG_DIR_SUPPORTS_CREATE;
-        } else if (file.canWrite()) {
-            flags |= Document.FLAG_SUPPORTS_WRITE;
+        } else {
+            flags |= Document.FLAG_SUPPORTS_COPY;
+            if (file.canWrite()) flags |= Document.FLAG_SUPPORTS_WRITE;
         }
-        if (file.getParentFile().canWrite()) flags |= Document.FLAG_SUPPORTS_DELETE;
+        if (file.getParentFile().canWrite()) flags |= Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_RENAME | Document.FLAG_SUPPORTS_MOVE;
 
         final String displayName = file.getName();
         final String mimeType = getMimeType(file);

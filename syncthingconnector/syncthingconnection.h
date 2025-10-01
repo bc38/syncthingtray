@@ -128,6 +128,7 @@ class LIB_SYNCTHING_CONNECTOR_EXPORT SyncthingConnection : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString syncthingUrl READ syncthingUrl WRITE setSyncthingUrl NOTIFY syncthingUrlChanged)
     Q_PROPERTY(QUrl syncthingUrlWithCredentials READ makeUrlWithCredentials NOTIFY syncthingUrlChanged)
+    Q_PROPERTY(QString localPath READ localPath WRITE setLocalPath)
     Q_PROPERTY(QByteArray apiKey READ apiKey WRITE setApiKey)
     Q_PROPERTY(bool isLocal READ isLocal)
     Q_PROPERTY(QString user READ user)
@@ -210,6 +211,8 @@ public:
     // getter/setter for various properties
     const QString &syncthingUrl() const;
     void setSyncthingUrl(const QString &url);
+    const QString &localPath() const;
+    void setLocalPath(const QString &localPath);
     bool isLocal() const;
     const QByteArray &apiKey() const;
     void setApiKey(const QByteArray &apiKey);
@@ -300,6 +303,7 @@ public:
     SyncthingDev *findDevInfo(const QString &devId, int &row);
     const SyncthingDev *findDevInfo(const QString &devId, int &row) const;
     SyncthingDev *findDevInfoByName(const QString &devName, int &row);
+    Q_INVOKABLE QString fullPath(const QString &dirId, const QString &relativePath) const;
 
 #ifndef QT_NO_SSL
     const QList<QSslError> &expectedSslErrors() const;
@@ -370,6 +374,9 @@ public:
     QueryResult postConfigFromJsonObject(
         const QJsonObject &rawConfig, std::function<void(QString &&)> &&callback = std::function<void(QString &&)>());
     QueryResult postConfigFromByteArray(const QByteArray &rawConfig, std::function<void(QString &&)> &&callback = std::function<void(QString &&)>());
+    QueryResult sendCustomRequest(const QByteArray &verb, const QUrl &url,
+        const QMap<QByteArray, QByteArray> &headers = QMap<QByteArray, QByteArray>(), QIODevice *data = nullptr);
+    QueryResult downloadSupportBundle();
 
 Q_SIGNALS:
     void syncthingUrlChanged(const QString &newUrl);
@@ -408,6 +415,7 @@ Q_SIGNALS:
     void directoryResumeTriggered(const QStringList &dirIds);
     void restartTriggered();
     void shutdownTriggered();
+    void errorsCleared();
     void logAvailable(const std::vector<Data::SyncthingLogEntry> &logEntries);
     void qrCodeAvailable(const QString &text, const QByteArray &qrCodeData);
     void overrideTriggered(const QString &dirId);
@@ -511,6 +519,7 @@ private:
         QByteArray response;
     };
     QNetworkRequest prepareRequest(const QString &path, const QUrlQuery &query, bool rest = true, bool longPolling = false);
+    QNetworkRequest prepareRequest(const QUrl &url, bool longPolling = false);
     QNetworkReply *requestData(const QString &path, const QUrlQuery &query, bool rest = true, bool longPolling = false);
     QNetworkReply *postData(const QString &path, const QUrlQuery &query, const QByteArray &data = QByteArray());
     QNetworkReply *sendData(const QByteArray &verb, const QString &path, const QUrlQuery &query, const QByteArray &data = QByteArray());
@@ -530,6 +539,7 @@ private:
     bool checkConnectionConfiguration();
 
     QString m_syncthingUrl;
+    QString m_localPath;
     QByteArray m_apiKey;
     QString m_user;
     QString m_password;
@@ -629,6 +639,23 @@ inline void SyncthingConnection::setSyncthingUrl(const QString &url)
     if (m_syncthingUrl != url) {
         emit syncthingUrlChanged(m_syncthingUrl = url);
     }
+}
+
+/*!
+ * \brief Returns the path of the Unix domain socket to connect to Syncthing.
+ */
+inline const QString &SyncthingConnection::localPath() const
+{
+    return m_localPath;
+}
+
+/*!
+ * \brief Sets the path of the Unix domain socket to connect to Syncthing.
+ * \remarks This path is only used when specifying a "unix+http://" URL via setSyncthingUrl().
+ */
+inline void SyncthingConnection::setLocalPath(const QString &localPath)
+{
+    m_localPath = localPath;
 }
 
 /*!

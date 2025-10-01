@@ -54,7 +54,15 @@ QNetworkRequest SyncthingConnection::prepareRequest(const QString &path, const Q
     }
     url.setPath(rest ? (basePath % QStringLiteral("rest/") % path) : (basePath + path));
     url.setQuery(query);
-    QNetworkRequest request(url);
+    return prepareRequest(url, longPolling);
+}
+
+/*!
+ * \brief Prepares a request for the specified \a url.
+ */
+QNetworkRequest SyncthingConnection::prepareRequest(const QUrl &url, bool longPolling)
+{
+    auto request = QNetworkRequest(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-www-form-urlencoded"));
     request.setRawHeader("X-API-Key", m_apiKey);
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -65,6 +73,12 @@ QNetworkRequest SyncthingConnection::prepareRequest(const QString &path, const Q
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
     // give it a few seconds more time than the actual long polling interval set via the timeout query parameter
     request.setTransferTimeout(longPolling ? (m_longPollingTimeout ? m_longPollingTimeout + 5000 : 0) : m_requestTimeout);
+#endif
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 8, 0))
+    // set full local server name to support connecting to Unix domain sockets
+    if (!localPath().isEmpty()) {
+        request.setAttribute(QNetworkRequest::FullLocalServerNameAttribute, localPath());
+    }
 #endif
     return request;
 }
@@ -673,6 +687,7 @@ void SyncthingConnection::readClearingErrors()
 
     switch (reply->error()) {
     case QNetworkReply::NoError:
+        emit errorsCleared();
         requestErrors();
         if (m_errorsPollTimer.isActive()) {
             m_errorsPollTimer.start(); // this stops and restarts the active timer to reset the remaining time
@@ -1617,6 +1632,14 @@ void SyncthingConnection::requestRevert(const QString &dirId)
 }
 
 /*!
+ * \brief Downloads a support bundle.
+ */
+SyncthingConnection::QueryResult SyncthingConnection::downloadSupportBundle()
+{
+    return QueryResult{ networkAccessManager().get(prepareRequest(QStringLiteral("debug/support"), QUrlQuery())) };
+}
+
+/*!
  * \brief Reads data from requestOverride().
  */
 void SyncthingConnection::readRevert()
@@ -1632,6 +1655,21 @@ void SyncthingConnection::readRevert()
     default:
         emitError(tr("Unable to request directory revert: "), SyncthingErrorCategory::SpecificRequest, reply);
     }
+}
+
+/*!
+ * \brief Performs a generic HTTP request to Syncthing.
+ */
+SyncthingConnection::QueryResult SyncthingConnection::sendCustomRequest(
+    const QByteArray &verb, const QUrl &url, const QMap<QByteArray, QByteArray> &headers, QIODevice *data)
+{
+    auto request = prepareRequest(url, false);
+    request.setTransferTimeout(0);
+    for (auto i = headers.cbegin(), end = headers.cend(); i != end; ++i) {
+        request.setRawHeader(i.key(), i.value());
+    }
+    auto *const reply = networkAccessManager().sendCustomRequest(request, verb, data);
+    return QueryResult{ reply };
 }
 
 /*!

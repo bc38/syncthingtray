@@ -6,6 +6,7 @@ set(META_APP_NAME "Syncthing control")
 set(META_APP_DESCRIPTION "Command line app to control ${META_SYNCTHING_NAME}")
 set(META_PROJECT_TYPE application)
 set(META_JS_SRC_DIR .)
+set(META_TEST_REQUIRE_MAIN_TARGET ON)
 
 # add project files
 set(HEADER_FILES helper.h args.h application.h)
@@ -17,7 +18,7 @@ set(TEST_SRC_FILES tests/application.cpp)
 set(META_SRCDIR_REFS "${CMAKE_CURRENT_SOURCE_DIR}\n${CMAKE_CURRENT_SOURCE_DIR}/../syncthingconnector")
 
 # find c++utilities
-find_package(${PACKAGE_NAMESPACE_PREFIX}c++utilities${CONFIGURATION_PACKAGE_SUFFIX} 5.21.0 REQUIRED)
+find_package(${PACKAGE_NAMESPACE_PREFIX}c++utilities${CONFIGURATION_PACKAGE_SUFFIX} 5.30.0 REQUIRED)
 use_cpp_utilities()
 
 # find qtutilities

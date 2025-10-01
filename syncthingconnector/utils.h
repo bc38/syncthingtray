@@ -10,6 +10,7 @@
 #include <QUrl>
 
 #include <limits>
+#include <utility>
 #include <vector>
 
 QT_FORWARD_DECLARE_CLASS(QJsonObject)
@@ -45,7 +46,8 @@ LIB_SYNCTHING_CONNECTOR_EXPORT bool setDirectoriesPaused(QJsonObject &syncthingC
 LIB_SYNCTHING_CONNECTOR_EXPORT bool setDevicesPaused(QJsonObject &syncthingConfig, const QStringList &dirs, bool paused);
 LIB_SYNCTHING_CONNECTOR_EXPORT QString substituteTilde(const QString &path, const QString &tilde, const QString &pathSeparator);
 #ifdef SYNCTHINGCONNECTION_SUPPORT_METERED
-LIB_SYNCTHING_CONNECTOR_EXPORT const QNetworkInformation *loadNetworkInformationBackendForMetered();
+LIB_SYNCTHING_CONNECTOR_EXPORT std::pair<const QNetworkInformation *, bool> loadNetworkInformationBackendForMetered(
+    bool determineInitialValue = false);
 #endif
 
 /*!
@@ -53,7 +55,11 @@ LIB_SYNCTHING_CONNECTOR_EXPORT const QNetworkInformation *loadNetworkInformation
  */
 inline bool isLocal(const QUrl &url)
 {
-    return isLocal(url.host());
+    if (isLocal(url.host())) {
+        return true;
+    }
+    const auto scheme = url.scheme();
+    return scheme.startsWith(QLatin1String("unix+")) || scheme.startsWith(QLatin1String("local+"));
 }
 
 template <typename IntType = quint64, Traits::EnableIf<std::is_integral<IntType>> * = nullptr>

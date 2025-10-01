@@ -98,13 +98,13 @@ Item {
                     plasmoid.openLocalFileOrDir(directoryId, path)
                 }
                 function copyPath() {
-                    plasmoid.copyToClipboard(path)
+                    plasmoid.copyToClipboard(directoryId, path)
                 }
                 function copyDeviceId() {
                     plasmoid.copyToClipboard(modifiedBy)
                 }
-                function copyFolderId() {
-                    plasmoid.copyToClipboard(folderId)
+                function copyDirectoryId() {
+                    plasmoid.copyToClipboard(directoryId)
                 }
             }
 
@@ -134,7 +134,7 @@ Item {
                 PlasmaExtras.MenuItem {
                     text: qsTr("Copy folder ID")
                     icon: "folder"
-                    onClicked: recentChangesView.currentItem.copyFolderId()
+                    onClicked: recentChangesView.currentItem.copyDirectoryId()
                 }
             }
         }

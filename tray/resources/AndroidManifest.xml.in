@@ -27,7 +27,8 @@
         android:requestLegacyExternalStorage="true"
         android:allowNativeHeapPointerTagging="false"
         android:allowBackup="true"
-        android:fullBackupOnly="false">
+        android:fullBackupOnly="false"
+        android:localeConfig="@xml/locale_config">
         <activity
             android:name=".Activity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
@@ -40,11 +41,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
+            <!-- disable receiving shared text for now as it leads to crashes -->
+            <!--<intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
+            </intent-filter>-->
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="-- %%INSERT_APP_LIB_NAME%% --" />
@@ -65,9 +67,27 @@
             <meta-data
                 android:name="android.app.background_running_after_destruction"
                 android:value="@META_BACKGROUND_RUNNING_AFTER_DESTRUCTION@" />
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
-        <service android:name=".SyncthingService" android:foregroundServiceType="specialUse" android:exported="true">
-            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Synchronizes files continuously in the background."/>
+        <service
+            android:name=".SyncthingService"
+            android:process=":service"
+            android:foregroundServiceType="specialUse"
+            android:exported="true">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Synchronizes files continuously in the background." />
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+            <meta-data
+                android:name="android.app.arguments"
+                android:value="service" />
+            <meta-data
+                android:name="android.app.background_running"
+                android:value="true" />
         </service>
         <provider
             android:name="androidx.core.content.FileProvider"
